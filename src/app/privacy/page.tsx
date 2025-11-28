@@ -1,44 +1,41 @@
-export const metadata = {
-  title: "Privacy Policy | AI Sheet Builder",
-};
+import Link from "next/link";
 
 export default function PrivacyPage() {
   return (
-    <main className="max-w-3xl mx-auto py-12 px-4 space-y-6 text-gray-700">
-      <h1 className="text-3xl font-semibold text-gray-900">Privacy Policy</h1>
+    <main className="min-h-screen bg-white text-slate-900">
+      <div className="mx-auto max-w-3xl px-4 py-10">
+        <header className="mb-8 flex items-center justify-between">
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Privacy Policy
+          </h1>
+          <Link
+            href="/"
+            className="text-xs text-slate-500 hover:text-slate-800"
+          >
+            ← Back to home
+          </Link>
+        </header>
 
-      <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-gray-900">Information We Collect</h2>
-        <p className="text-sm leading-relaxed">
-          We collect basic account information, usage data, and voluntary feedback to improve your
-          experience. Any data you provide is handled with care and only used to deliver the
-          service.
+        <p className="text-sm text-slate-600 mb-4">
+          This is a placeholder privacy policy for AI Sheet Builder. Replace
+          this with your real legal copy once you&apos;re ready to go live.
         </p>
-      </section>
 
-      <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-gray-900">How We Use Your Information</h2>
-        <p className="text-sm leading-relaxed">
-          We use your information to operate the product, personalize templates, and communicate
-          important updates. We do not sell your data to third parties.
-        </p>
-      </section>
-
-      <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-gray-900">Data Storage &amp; Security</h2>
-        <p className="text-sm leading-relaxed">
-          Your data is stored with modern encryption and access controls. We regularly review our
-          security practices to safeguard your information against unauthorized access.
-        </p>
-      </section>
-
-      <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-gray-900">Contact</h2>
-        <p className="text-sm leading-relaxed">
-          If you have questions about this policy, reach out at privacy@example.com and we will
-          respond promptly.
-        </p>
-      </section>
+        <div className="space-y-4 text-sm text-slate-700 leading-relaxed">
+          <p>
+            We use your data only to provide and improve our spreadsheet
+            automation tools. We do not sell your data to third parties.
+          </p>
+          <p>
+            Any Google Sheets or Google Drive access you grant is used solely to
+            create and update spreadsheets on your behalf.
+          </p>
+          <p>
+            You can request deletion of your account and associated data at any
+            time by contacting support.
+          </p>
+        </div>
+      </div>
     </main>
   );
 }

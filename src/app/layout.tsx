@@ -1,10 +1,11 @@
 // src/app/layout.tsx
-import "./globals.css";
 import type { Metadata } from "next";
+import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "AI Sheet Builder",
-  description: "Montee-style landing page for AI-powered Google Sheets tools.",
+  title: "Automate Your Job – AI Sheet Builder",
+  description:
+    "Industrial-grade Google Sheets templates and AI tools to automate repetitive work.",
 };
 
 export default function RootLayout({
@@ -14,7 +15,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="bg-white text-slate-900 antialiased">
+      <body className="min-h-screen bg-white text-slate-900">
         {children}
       </body>
     </html>

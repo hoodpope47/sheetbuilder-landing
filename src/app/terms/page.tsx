@@ -1,43 +1,43 @@
-export const metadata = {
-  title: "Terms of Service | AI Sheet Builder",
-};
+import Link from "next/link";
 
 export default function TermsPage() {
   return (
-    <main className="max-w-3xl mx-auto py-12 px-4 space-y-6 text-gray-700">
-      <h1 className="text-3xl font-semibold text-gray-900">Terms of Service</h1>
+    <main className="min-h-screen bg-white text-slate-900">
+      <div className="mx-auto max-w-3xl px-4 py-10">
+        <header className="mb-8 flex items-center justify-between">
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Terms of Service
+          </h1>
+          <Link
+            href="/"
+            className="text-xs text-slate-500 hover:text-slate-800"
+          >
+            ← Back to home
+          </Link>
+        </header>
 
-      <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-gray-900">Acceptance of Terms</h2>
-        <p className="text-sm leading-relaxed">
-          By accessing or using the service, you agree to these terms. If you do not agree, please
-          discontinue use immediately.
+        <p className="text-sm text-slate-600 mb-4">
+          These are placeholder terms for AI Sheet Builder. Replace this with
+          your actual terms before launch.
         </p>
-      </section>
 
-      <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-gray-900">Use of the Service</h2>
-        <p className="text-sm leading-relaxed">
-          You may use the platform to generate and manage spreadsheet templates for personal or
-          business use. You are responsible for maintaining the confidentiality of your account.
-        </p>
-      </section>
-
-      <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-gray-900">Limitation of Liability</h2>
-        <p className="text-sm leading-relaxed">
-          The service is provided “as is” without warranties. We are not liable for any indirect,
-          incidental, or consequential damages arising from use of the product.
-        </p>
-      </section>
-
-      <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-gray-900">Changes to These Terms</h2>
-        <p className="text-sm leading-relaxed">
-          We may update these terms periodically. Continued use of the service after updates
-          constitutes acceptance of the revised terms.
-        </p>
-      </section>
+        <div className="space-y-4 text-sm text-slate-700 leading-relaxed">
+          <p>
+            By using this service, you agree that the tool is provided on a
+            best-effort basis with no guarantee of fitness for a particular
+            purpose.
+          </p>
+          <p>
+            You are responsible for reviewing and validating all generated
+            spreadsheets before using them for financial, legal, or operational
+            decisions.
+          </p>
+          <p>
+            We may update these terms from time to time. Continued use of the
+            service after changes constitutes acceptance of the new terms.
+          </p>
+        </div>
+      </div>
     </main>
   );
 }
