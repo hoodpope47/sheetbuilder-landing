@@ -11,7 +11,6 @@ export const metadata: Metadata = {
 
 const TRUSTED_LOGOS = [
   { name: "Google", src: "/logos/google.png" },
-  { name: "Microsoft", src: "/logos/microsoft.png" }, // replace if needed
   { name: "Stripe", src: "/logos/stripe.png" },
   { name: "Notion", src: "/logos/notion.png" },
   { name: "Shopify", src: "/logos/shopify.png" },
@@ -21,24 +20,72 @@ const TRUSTED_LOGOS = [
 const TOOLS = [
   {
     slug: "ai-sheet-builder",
-    label: "AI Sheet Builder",
+    icon: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+        strokeWidth={1.5}
+        stroke="currentColor"
+        className="h-5 w-5"
+        aria-hidden
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M3 3h7v7H3V3zM14 3h7v4h-7V3zM14 10h7v11h-7V10zM3 11h7v7H3v-7z"
+        />
+      </svg>
+    ),
+    name: "AI Sheet Builder",
     description:
       "Generate industrial-grade Google Sheets templates in seconds with built-in formulas and formatting.",
-    icon: "📊",
   },
   {
     slug: "template-library",
-    label: "Template Library",
+    icon: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+        strokeWidth={1.5}
+        stroke="currentColor"
+        className="h-5 w-5"
+        aria-hidden
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 3v18h18" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M7 14l3-3 3 3 4-4" />
+      </svg>
+    ),
+    name: "Template Library",
     description:
       "Pre-built finance, CRM, and project templates you can drop into Sheets and customize.",
-    icon: "📚",
   },
   {
     slug: "schema-playground",
-    label: "Schema Playground",
+    icon: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        className="h-5 w-5"
+        aria-hidden
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v8M8 12h8" />
+        <circle
+          cx="12"
+          cy="12"
+          r="9"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ),
+    name: "Schema Playground",
     description:
       "Design JSON schemas that map to Sheets and generate columns, types, and validations.",
-    icon: "🧩",
   },
 ];
 
@@ -79,96 +126,89 @@ const PLANS = [
 ];
 
 export default function HomePage() {
-  const year = new Date().getFullYear();
-
   return (
     <main className="min-h-screen bg-white text-slate-900 flex flex-col">
-      {/* TOP NAV */}
-      <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/80 backdrop-blur">
+      {/* Top nav */}
+      <header className="w-full border-b border-slate-200">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500 text-white text-sm font-bold">
-              SB
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-neon text-slate-900 font-bold shadow-soft-card">
+              A
             </div>
             <span className="text-sm font-semibold tracking-tight">
-              SheetBuilder AI
+              AI Sheet Builder
             </span>
           </div>
-          <nav className="flex items-center gap-4 text-sm">
+          <div className="flex items-center gap-4 text-sm">
             <Link href="#tools" className="text-slate-600 hover:text-slate-900">
               Tools
             </Link>
-            <Link
-              href="#pricing"
-              className="text-slate-600 hover:text-slate-900"
-            >
+            <Link href="#pricing" className="text-slate-600 hover:text-slate-900">
               Pricing
             </Link>
             <Link
               href="/login"
-              className="rounded-full border border-slate-200 px-4 py-1.5 text-xs font-medium text-slate-800 hover:bg-slate-50"
+              className="rounded-full border border-slate-200 px-4 py-1.5 text-xs font-medium hover:bg-slate-50"
             >
               Log in
             </Link>
-          </nav>
+          </div>
         </div>
       </header>
 
       {/* HERO SECTION */}
-      <section className="border-b border-slate-100 bg-white">
-        <div className="mx-auto flex max-w-3xl flex-col items-center px-4 pb-20 pt-16 text-center sm:pb-24 sm:pt-24">
-          <span className="mb-5 inline-flex items-center rounded-full border border-emerald-100 bg-emerald-50 px-4 py-1 text-[11px] font-medium text-emerald-700">
-            Productivity tools for builders
-          </span>
-
-          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl">
-            Automate Your Job
+      <section className="border-b border-slate-100">
+        <div className="mx-auto flex max-w-3xl flex-col items-center px-4 pb-16 pt-20 text-center sm:pb-20 sm:pt-24">
+          <p className="mb-4 rounded-full border border-neon/30 bg-neon-soft px-4 py-1 text-xs font-medium text-neon-dark">
+            Industrial-grade Google Sheets automation
+          </p>
+          <h1 className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl md:text-5xl">
+            Automate your job,
+            <br className="hidden sm:block" />
+            one spreadsheet at a time.
           </h1>
-
-          <p className="mt-4 max-w-xl text-sm leading-relaxed text-slate-600 sm:text-base">
-            SheetBuilder AI is a suite of productivity tools that help you get
-            your work done more quickly and make your work life easier.
+          <p className="mt-5 max-w-xl text-sm leading-relaxed text-slate-600 sm:text-base">
+            Turn messy ideas into clean, production-ready Google Sheets templates
+            with a single prompt. Funnels, budgets, KPIs, content calendars, and more.
           </p>
 
           <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <Link
               href="/templates"
-              className="inline-flex items-center justify-center rounded-full bg-orange-500 px-8 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-orange-600"
+              className="inline-flex items-center justify-center rounded-full bg-neon px-7 py-2.5 text-sm font-semibold text-slate-900 shadow-soft-card hover:bg-neon-dark hover:text-white transition"
             >
               Start Automating Your Job
             </Link>
             <Link
               href="/templates"
-              className="text-xs text-slate-600 hover:text-slate-900"
+              className="text-xs text-slate-500 hover:text-neon-dark"
             >
               View example templates →
             </Link>
           </div>
 
           <p className="mt-6 text-xs text-slate-500">
-            <span className="mr-1">❤️</span> Loved by 4,000+ working
-            professionals.
+            <span className="mr-1">❤️</span> Loved by 4,000+ working professionals.
           </p>
         </div>
       </section>
 
-      {/* TRUSTED BY */}
+      {/* TRUST LOGOS SECTION */}
       <section className="border-b border-slate-100 bg-slate-50">
-        <div className="mx-auto max-w-5xl px-4 py-12">
+        <div className="mx-auto max-w-4xl px-4 py-12">
           <p className="text-center text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
             Trusted by people at the following institutions
           </p>
 
-          {/* infinite marquee style row */}
-          <div className="mt-6 overflow-hidden">
-            <div className="group relative">
-              <div className="flex animate-[marquee_22s_linear_infinite] group-hover:[animation-play-state:paused]">
+          <div className="mt-6">
+            <div className="group relative overflow-hidden max-w-4xl mx-auto">
+              <div className="flex animate-marquee group-hover:[animation-play-state:paused]">
                 {[...TRUSTED_LOGOS, ...TRUSTED_LOGOS].map((logo, index) => (
                   <div
                     key={`${logo.name}-${index}`}
-                    className="mx-3 flex h-14 w-32 flex-shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white/80 text-xs font-medium text-slate-500 shadow-sm opacity-70 hover:opacity-100"
+                    className="flex items-center justify-center px-6 h-16 mx-2 rounded-xl bg-white border border-slate-200 shadow-soft-card flex-shrink-0"
                   >
-                    {logo.name}
+                    <Image src={logo.src} alt={logo.name} width={96} height={28} />
                   </div>
                 ))}
               </div>
@@ -177,56 +217,55 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* OUR TOOLS */}
-      <section id="tools" className="border-b border-slate-100 bg-white">
-        <div className="mx-auto max-w-6xl px-4 py-16">
-          <div className="mb-10 text-center">
+      {/* OUR TOOLS SECTION */}
+      <section id="tools" className="border-b border-slate-100">
+        <div className="mx-auto max-w-5xl px-4 py-16">
+          <div className="mb-8 flex flex-col gap-2 text-center">
             <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
               Our Tools
             </h2>
-            <p className="mt-2 text-sm text-slate-600">
+            <p className="text-sm text-slate-600">
               A focused toolkit to help you ship better spreadsheets, faster.
             </p>
           </div>
 
           <div className="grid gap-6 md:grid-cols-3">
             {TOOLS.map((tool) => (
-              <article
-                key={tool.slug}
-                className="flex flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
+              <div
+                key={tool.name}
+                className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-soft-card hover:shadow-lg transition"
               >
-                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-orange-50 text-lg">
-                  <span aria-hidden>{tool.icon}</span>
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-neon-soft text-neon-dark">
+                  {tool.icon}
                 </div>
                 <h3 className="text-sm font-semibold text-slate-900">
-                  {tool.label}
+                  {tool.name}
                 </h3>
                 <p className="mt-2 text-xs leading-relaxed text-slate-600">
                   {tool.description}
                 </p>
                 <Link
                   href={`/templates#${tool.slug}`}
-                  className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-orange-600 hover:text-orange-700"
+                  className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-neon-dark hover:text-neon"
                 >
                   Learn more
                   <span aria-hidden>→</span>
                 </Link>
-              </article>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* PRICING */}
+      {/* PRICING SECTION */}
       <section id="pricing" className="bg-slate-50">
-        <div className="mx-auto max-w-6xl px-4 py-16">
+        <div className="mx-auto max-w-5xl px-4 py-16">
           <div className="mb-8 text-center">
             <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
               Pricing
             </h2>
             <p className="mt-2 text-sm text-slate-600">
-              Start free, then upgrade only when automation actually saves you
-              time.
+              Start free, then upgrade only when automation actually saves you time.
             </p>
           </div>
 
@@ -234,9 +273,9 @@ export default function HomePage() {
             {PLANS.map((plan) => (
               <div
                 key={plan.name}
-                className={`flex flex-col rounded-2xl border bg-white p-6 shadow-sm ${
+                className={`flex flex-col rounded-2xl border bg-white p-6 shadow-soft-card ${
                   plan.highlight
-                    ? "border-orange-500 shadow-md"
+                    ? "border-neon shadow-lg"
                     : "border-slate-200"
                 }`}
               >
@@ -245,7 +284,7 @@ export default function HomePage() {
                     {plan.name}
                   </h3>
                   {plan.highlight && (
-                    <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-medium text-orange-700">
+                    <span className="rounded-full bg-neon-soft px-2 py-0.5 text-[10px] font-medium text-neon-dark">
                       Most popular
                     </span>
                   )}
@@ -263,7 +302,7 @@ export default function HomePage() {
                 <ul className="mt-4 flex-1 space-y-2 text-xs text-slate-600">
                   {plan.features.map((feature) => (
                     <li key={feature} className="flex items-start gap-2">
-                      <span className="mt-[3px] h-3 w-3 flex-shrink-0 rounded-full bg-emerald-500/80" />
+                      <span className="mt-[2px] h-3 w-3 flex-shrink-0 rounded-full bg-neon" />
                       <span>{feature}</span>
                     </li>
                   ))}
@@ -272,7 +311,7 @@ export default function HomePage() {
                 <button
                   className={`mt-6 w-full rounded-full px-4 py-2 text-xs font-semibold transition ${
                     plan.highlight
-                      ? "bg-orange-500 text-white hover:bg-orange-600"
+                      ? "bg-neon text-slate-900 hover:bg-neon-dark hover:text-white"
                       : "border border-slate-200 text-slate-800 hover:bg-slate-50"
                   }`}
                 >
@@ -284,20 +323,21 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* FOOTER */}
       <footer className="border-t border-slate-100 bg-white">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-4 py-6 text-[11px] text-slate-500 sm:flex-row">
-          <span>© {year} SheetBuilder AI. All rights reserved.</span>
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-6 text-[11px] text-slate-500">
+          <span>
+            © {new Date().getFullYear()} AI Sheet Builder. All rights reserved.
+          </span>
           <div className="flex gap-4">
             <Link
               href="/privacy"
-              className="text-xs text-slate-500 hover:text-slate-800"
+              className="text-sm text-gray-500 hover:text-gray-700"
             >
               Privacy Policy
             </Link>
             <Link
               href="/terms"
-              className="text-xs text-slate-500 hover:text-slate-800"
+              className="text-sm text-gray-500 hover:text-gray-700"
             >
               Terms of Service
             </Link>

@@ -1,20 +1,18 @@
 /** @type {import('tailwindcss').Config} */
-module.exports = {
+export default {
   content: [
-    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
     extend: {
-      keyframes: {
-        marquee: {
-          "0%": { transform: "translateX(0)" },
-          "100%": { transform: "translateX(-50%)" },
-        },
+      colors: {
+        neon: "#39FF14",          // main neon
+        "neon-dark": "#1FCC0E",   // hover / accent
+        "neon-soft": "#E6FFE6",   // light background tints
       },
-      animation: {
-        marquee: "marquee 25s linear infinite",
+      boxShadow: {
+        "soft-card": "0 18px 45px rgba(15, 23, 42, 0.12)",
       },
     },
   },
