@@ -1,0 +1,346 @@
+// src/app/page.tsx
+import Image from "next/image";
+import Link from "next/link";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Automate Your Job – AI Sheet Builder",
+  description:
+    "Industrial-grade Google Sheets templates and AI tools to automate repetitive work.",
+};
+
+const TRUSTED_LOGOS = [
+  { name: "Google", src: "/logos/google.svg" },
+  { name: "Microsoft", src: "/logos/microsoft.svg" },
+  { name: "Stripe", src: "/logos/stripe.svg" },
+  { name: "Notion", src: "/logos/notion.svg" },
+  { name: "Shopify", src: "/logos/shopify.svg" },
+  { name: "Airtable", src: "/logos/airtable.svg" },
+];
+
+const TOOLS = [
+  {
+    slug: "ai-sheet-builder",
+    icon: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+        strokeWidth={1.5}
+        stroke="currentColor"
+        className="h-5 w-5"
+        aria-hidden
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M3 3h7v7H3V3zM14 3h7v4h-7V3zM14 10h7v11h-7V10zM3 11h7v7H3v-7z"
+        />
+      </svg>
+    ),
+    name: "AI Sheet Builder",
+    description:
+      "Generate industrial-grade Google Sheets templates in seconds with built-in formulas and formatting.",
+  },
+  {
+    slug: "template-library",
+    icon: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+        strokeWidth={1.5}
+        stroke="currentColor"
+        className="h-5 w-5"
+        aria-hidden
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M3 3v18h18"
+        />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M7 14l3-3 3 3 4-4"
+        />
+      </svg>
+    ),
+    name: "Template Library",
+    description:
+      "Pre-built finance, CRM, and project templates you can drop into Sheets and customize.",
+  },
+  {
+    slug: "schema-playground",
+    icon: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        className="h-5 w-5"
+        aria-hidden
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v8M8 12h8" />
+        <circle cx="12" cy="12" r="9" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+    name: "Schema Playground",
+    description:
+      "Design JSON schemas that map to Sheets and generate columns, types, and validations.",
+  },
+];
+
+const PLANS = [
+  {
+    name: "Starter",
+    price: "$0",
+    tagline: "Perfect for trying things out",
+    features: [
+      "Up to 5 AI-generated sheets / month",
+      "Access to core templates",
+      "Email support",
+    ],
+    highlight: false,
+  },
+  {
+    name: "Pro",
+    price: "$19",
+    tagline: "For solo operators & freelancers",
+    features: [
+      "Unlimited AI-generated sheets",
+      "Advanced templates (CRM, KPI, content calendar)",
+      "Priority support",
+    ],
+    highlight: true,
+  },
+  {
+    name: "Team",
+    price: "$49",
+    tagline: "For teams that live in sheets",
+    features: [
+      "Up to 10 team members",
+      "Shared template library",
+      "Custom onboarding session",
+    ],
+    highlight: false,
+  },
+];
+
+export default function HomePage() {
+  return (
+    <main className="min-h-screen bg-white text-slate-900 flex flex-col">
+      {/* Top nav (simple) */}
+      <header className="w-full border-b border-slate-200">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500 text-white font-bold">
+              A
+            </div>
+            <span className="text-sm font-semibold tracking-tight">
+              AI Sheet Builder
+            </span>
+          </div>
+          <div className="flex items-center gap-4 text-sm">
+            <Link href="#tools" className="text-slate-600 hover:text-slate-900">
+              Tools
+            </Link>
+            <Link href="#pricing" className="text-slate-600 hover:text-slate-900">
+              Pricing
+            </Link>
+            <Link
+              href="/login"
+              className="rounded-full border border-slate-200 px-4 py-1.5 text-xs font-medium hover:bg-slate-50"
+            >
+              Log in
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      {/* HERO SECTION */}
+      <section className="border-b border-slate-100">
+        <div className="mx-auto flex max-w-3xl flex-col items-center px-4 pb-16 pt-20 text-center sm:pb-20 sm:pt-24">
+          <p className="mb-4 rounded-full border border-emerald-100 bg-emerald-50 px-4 py-1 text-xs font-medium text-emerald-700">
+            Industrial-grade Google Sheets automation
+          </p>
+          <h1 className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl md:text-5xl">
+            Automate your job,<br className="hidden sm:block" />
+            one spreadsheet at a time.
+          </h1>
+          <p className="mt-5 max-w-xl text-sm leading-relaxed text-slate-600 sm:text-base">
+            Turn messy ideas into clean, production-ready Google Sheets templates
+            with a single prompt. Funnels, budgets, KPIs, content calendars, and more.
+          </p>
+
+          <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+            <Link
+              href="/templates"
+              className="inline-flex items-center justify-center rounded-full bg-emerald-500 px-7 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-600 transition"
+            >
+              Start Automating Your Job
+            </Link>
+            <Link href="/templates" className="text-xs text-slate-500 hover:text-slate-700">
+              View example templates →
+            </Link>
+          </div>
+
+          <p className="mt-6 text-xs text-slate-500">
+            <span className="mr-1">❤️</span> Loved by 4,000+ working professionals.
+          </p>
+        </div>
+      </section>
+
+      {/* TRUST LOGOS SECTION */}
+      <section className="border-b border-slate-100 bg-slate-50">
+        <div className="mx-auto max-w-4xl px-4 py-12">
+          <p className="text-center text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
+            Trusted by people at the following institutions
+          </p>
+
+          <div className="mt-6">
+            <div className="group relative overflow-hidden max-w-4xl mx-auto">
+              <div className="flex animate-marquee group-hover:[animation-play-state:paused]">
+                {[...TRUSTED_LOGOS, ...TRUSTED_LOGOS].map((logo, index) => (
+                  <div
+                    key={`${logo.name}-${index}`}
+                    className="flex items-center justify-center px-6 h-16 mx-2 rounded-xl bg-gray-50 border border-gray-100 shadow-sm flex-shrink-0"
+                  >
+                    <Image src={logo.src} alt={logo.name} width={96} height={28} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* OUR TOOLS SECTION */}
+      <section id="tools" className="border-b border-slate-100">
+        <div className="mx-auto max-w-5xl px-4 py-16">
+          <div className="mb-8 flex flex-col gap-2 text-center">
+            <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
+              Our Tools
+            </h2>
+            <p className="text-sm text-slate-600">
+              A focused toolkit to help you ship better spreadsheets, faster.
+            </p>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-3">
+            {TOOLS.map((tool) => (
+              <div
+                key={tool.name}
+                className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition"
+              >
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                  {tool.icon}
+                </div>
+                <h3 className="text-sm font-semibold text-slate-900">
+                  {tool.name}
+                </h3>
+                <p className="mt-2 text-xs leading-relaxed text-slate-600">
+                  {tool.description}
+                </p>
+                <Link
+                  href={`/templates#${tool.slug}`}
+                  className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-emerald-600 hover:text-emerald-700"
+                >
+                  Learn more
+                  <span aria-hidden>→</span>
+                </Link>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* PRICING SECTION */}
+      <section id="pricing" className="bg-slate-50">
+        <div className="mx-auto max-w-5xl px-4 py-16">
+          <div className="mb-8 text-center">
+            <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
+              Pricing
+            </h2>
+            <p className="mt-2 text-sm text-slate-600">
+              Start free, then upgrade only when automation actually saves you time.
+            </p>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-3">
+            {PLANS.map((plan) => (
+              <div
+                key={plan.name}
+                className={`flex flex-col rounded-2xl border bg-white p-6 shadow-sm ${
+                  plan.highlight
+                    ? "border-emerald-500 shadow-md"
+                    : "border-slate-200"
+                }`}
+              >
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-slate-900">
+                    {plan.name}
+                  </h3>
+                  {plan.highlight && (
+                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
+                      Most popular
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-500">{plan.tagline}</p>
+                <div className="mt-4 flex items-baseline gap-1">
+                  <span className="text-2xl font-semibold text-slate-900">
+                    {plan.price}
+                  </span>
+                  {plan.price !== "$0" && (
+                    <span className="text-[11px] text-slate-500">/month</span>
+                  )}
+                </div>
+
+                <ul className="mt-4 flex-1 space-y-2 text-xs text-slate-600">
+                  {plan.features.map((feature) => (
+                    <li key={feature} className="flex items-start gap-2">
+                      <span className="mt-[2px] h-3 w-3 flex-shrink-0 rounded-full bg-emerald-500/80" />
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                  <button
+                    className={`mt-6 w-full rounded-full px-4 py-2 text-xs font-semibold transition ${
+                      plan.highlight
+                        ? "bg-emerald-500 text-white hover:bg-emerald-600"
+                        : "border border-slate-200 text-slate-800 hover:bg-slate-50"
+                    }`}
+                  >
+                    {plan.price === "$0" ? "Get started for free" : "Choose plan"}
+                  </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <footer className="border-t border-slate-100 bg-white">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-6 text-[11px] text-slate-500">
+          <span>© {new Date().getFullYear()} AI Sheet Builder. All rights reserved.</span>
+          <div className="flex gap-4">
+            <Link
+              href="/privacy"
+              className="text-sm text-gray-500 hover:text-gray-700"
+            >
+              Privacy Policy
+            </Link>
+            <Link
+              href="/terms"
+              className="text-sm text-gray-500 hover:text-gray-700"
+            >
+              Terms of Service
+            </Link>
+          </div>
+        </div>
+      </footer>
+    </main>
+  );
+}
