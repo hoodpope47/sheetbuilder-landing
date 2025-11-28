@@ -10,12 +10,12 @@ export const metadata: Metadata = {
 };
 
 const TRUSTED_LOGOS = [
-  { name: "Google" },
-  { name: "Microsoft" },
-  { name: "Stripe" },
-  { name: "Notion" },
-  { name: "Shopify" },
-  { name: "Airtable" },
+  { name: "Google", src: "/logos/google.png" },
+  { name: "Microsoft", src: "/logos/microsoft.png" }, // replace if needed
+  { name: "Stripe", src: "/logos/stripe.png" },
+  { name: "Notion", src: "/logos/notion.png" },
+  { name: "Shopify", src: "/logos/shopify.png" },
+  { name: "Airtable", src: "/logos/airtable.png" },
 ];
 
 const TOOLS = [

@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="120" height="32" viewBox="0 0 120 32" role="img" aria-label="Notion">
-  <rect width="120" height="32" rx="8" fill="#F8FAFC" />
-  <rect x="14" y="8" width="22" height="16" rx="4" fill="#111827" />
-  <rect x="18" y="11" width="14" height="10" rx="2" fill="#F8FAFC" />
-  <text x="44" y="20" font-family="Arial, sans-serif" font-size="12" fill="#111827">Notion</text>
-</svg>

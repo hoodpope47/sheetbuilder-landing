@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="120" height="32" viewBox="0 0 120 32" role="img" aria-label="Airtable">
-  <rect width="120" height="32" rx="8" fill="#FDF2F8" />
-  <path d="M16 12l9-4 9 4-9 4-9-4z" fill="#EC4899" />
-  <path d="M16 14l9 4 9-4v6l-9 4-9-4v-6z" fill="#F9A8D4" />
-  <text x="44" y="20" font-family="Arial, sans-serif" font-size="12" fill="#9D174D">Airtable</text>
-</svg>
