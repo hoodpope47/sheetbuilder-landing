@@ -6,7 +6,8 @@
 /* Simple light theme */
 :root {
   --background: #ffffff;
-  --foreground: #0f172a; /* slate-900 */
+  --foreground: #0f172a;
+  /* slate-900 */
 }
 
 html,
@@ -19,4 +20,36 @@ body {
   color: var(--foreground);
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
     sans-serif;
+}
+
+/* Normalize all logos to render crisp & consistent */
+img,
+svg {
+  image-rendering: -webkit-optimize-contrast;
+}
+
+/* Logos marquee animation */
+@keyframes logo-marquee {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-logo-marquee {
+  animation: logo-marquee 24s linear infinite;
+  will-change: transform;
+}
+
+img {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+img,
+svg {
+  image-rendering: -webkit-optimize-contrast;
 }

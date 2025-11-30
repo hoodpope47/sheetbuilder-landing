@@ -9,6 +9,18 @@ export const metadata: Metadata = {
     "Industrial-grade Google Sheets templates and AI tools to automate repetitive work.",
 };
 
+// Logo assets note:
+// The PNG files in /public/logos should follow these guidelines:
+// - Transparent background
+// - Square canvas: 400 x 400 px
+// - Logo centered in the canvas
+// - Aspect ratio preserved (no stretching)
+// - Filenames:
+//   - /public/logos/google.png
+//   - /public/logos/stripe.png
+//   - /public/logos/notion.png
+//   - /public/logos/shopify.png
+//   - /public/logos/airtable.png
 const TRUSTED_LOGOS = [
   { name: "Google", src: "/logos/google.png" },
   { name: "Stripe", src: "/logos/stripe.png" },
@@ -16,6 +28,20 @@ const TRUSTED_LOGOS = [
   { name: "Shopify", src: "/logos/shopify.png" },
   { name: "Airtable", src: "/logos/airtable.png" },
 ];
+
+const getLogoScale = (name: string): string => {
+  switch (name) {
+    case "Google":
+      // Make Google ~2x relative to base
+      return "scale-[2]";
+    case "Shopify":
+      // Make Shopify ~1.5x relative to base
+      return "scale-[1.5]";
+    default:
+      // All other logos stay at normal scale
+      return "scale-[1]";
+  }
+};
 
 const TOOLS = [
   {
@@ -160,16 +186,13 @@ export default function HomePage() {
       <section className="border-b border-slate-100">
         <div className="mx-auto flex max-w-3xl flex-col items-center px-4 pb-16 pt-20 text-center sm:pb-20 sm:pt-24">
           <p className="mb-4 rounded-full border border-neon/30 bg-neon-soft px-4 py-1 text-xs font-medium text-neon-dark">
-            Industrial-grade Google Sheets automation
+            AI tools for people who live in Google Sheets
           </p>
           <h1 className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl md:text-5xl">
-            Automate your job,
-            <br className="hidden sm:block" />
-            one spreadsheet at a time.
+            Turn Google Sheets into your smartest coworker.
           </h1>
           <p className="mt-5 max-w-xl text-sm leading-relaxed text-slate-600 sm:text-base">
-            Turn messy ideas into clean, production-ready Google Sheets templates
-            with a single prompt. Funnels, budgets, KPIs, content calendars, and more.
+            Describe the workflow once and get a clean, production-ready Sheet with formulas, checks, and views already wired up.
           </p>
 
           <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
@@ -177,7 +200,7 @@ export default function HomePage() {
               href="/templates"
               className="inline-flex items-center justify-center rounded-full bg-neon px-7 py-2.5 text-sm font-semibold text-slate-900 shadow-soft-card hover:bg-neon-dark hover:text-white transition"
             >
-              Start Automating Your Job
+              Start automating with AI
             </Link>
             <Link
               href="/templates"
@@ -188,10 +211,12 @@ export default function HomePage() {
           </div>
 
           <p className="mt-6 text-xs text-slate-500">
-            <span className="mr-1">❤️</span> Loved by 4,000+ working professionals.
+            <span className="mr-1">❤️</span> Trusted by thousands of operators, founders, and analysts.
           </p>
         </div>
       </section>
+
+
 
       {/* TRUST LOGOS SECTION */}
       <section className="border-b border-slate-100 bg-slate-50">
@@ -201,14 +226,20 @@ export default function HomePage() {
           </p>
 
           <div className="mt-6">
-            <div className="group relative overflow-hidden max-w-4xl mx-auto">
-              <div className="flex animate-marquee group-hover:[animation-play-state:paused]">
+            <div className="relative mx-auto max-w-4xl overflow-hidden">
+              <div className="flex animate-logo-marquee items-center gap-6 group-hover:[animation-play-state:paused]">
                 {[...TRUSTED_LOGOS, ...TRUSTED_LOGOS].map((logo, index) => (
                   <div
                     key={`${logo.name}-${index}`}
-                    className="flex items-center justify-center px-6 h-16 mx-2 rounded-xl bg-white border border-slate-200 shadow-soft-card flex-shrink-0"
+                    className="flex h-16 w-40 items-center justify-center rounded-xl border border-slate-200 bg-white/90 shadow-sm flex-shrink-0"
                   >
-                    <Image src={logo.src} alt={logo.name} width={96} height={28} />
+                    <Image
+                      src={logo.src}
+                      alt={logo.name}
+                      width={160}
+                      height={64}
+                      className={`h-10 w-auto object-contain ${getLogoScale(logo.name)}`}
+                    />
                   </div>
                 ))}
               </div>
@@ -225,7 +256,7 @@ export default function HomePage() {
               Our Tools
             </h2>
             <p className="text-sm text-slate-600">
-              A focused toolkit to help you ship better spreadsheets, faster.
+              A focused toolkit that turns vague ideas into structured spreadsheets you can ship the same day.
             </p>
           </div>
 
@@ -265,7 +296,7 @@ export default function HomePage() {
               Pricing
             </h2>
             <p className="mt-2 text-sm text-slate-600">
-              Start free, then upgrade only when automation actually saves you time.
+              Start on the free tier, then upgrade when your team is living in the templates every day.
             </p>
           </div>
 
@@ -273,11 +304,10 @@ export default function HomePage() {
             {PLANS.map((plan) => (
               <div
                 key={plan.name}
-                className={`flex flex-col rounded-2xl border bg-white p-6 shadow-soft-card ${
-                  plan.highlight
-                    ? "border-neon shadow-lg"
-                    : "border-slate-200"
-                }`}
+                className={`flex flex-col rounded-2xl border bg-white p-6 shadow-soft-card ${plan.highlight
+                  ? "border-neon shadow-lg"
+                  : "border-slate-200"
+                  }`}
               >
                 <div className="mb-3 flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-slate-900">
@@ -309,11 +339,10 @@ export default function HomePage() {
                 </ul>
 
                 <button
-                  className={`mt-6 w-full rounded-full px-4 py-2 text-xs font-semibold transition ${
-                    plan.highlight
-                      ? "bg-neon text-slate-900 hover:bg-neon-dark hover:text-white"
-                      : "border border-slate-200 text-slate-800 hover:bg-slate-50"
-                  }`}
+                  className={`mt-6 w-full rounded-full px-4 py-2 text-xs font-semibold transition ${plan.highlight
+                    ? "bg-neon text-slate-900 hover:bg-neon-dark hover:text-white"
+                    : "border border-slate-200 text-slate-800 hover:bg-slate-50"
+                    }`}
                 >
                   {plan.price === "$0" ? "Get started for free" : "Choose plan"}
                 </button>
