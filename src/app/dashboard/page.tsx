@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { getSupabaseBrowserClient } from "@/lib/supabaseClient";
+import { fetchProfileAndUsage, type ProfileInfo, type UsageSummary } from "@/lib/usage";
 
 type TabId = "overview" | "schemas" | "history";
 
@@ -53,7 +53,11 @@ const PROMPT_PRESETS = [
     "KPI dashboard for marketing and sales.",
 ];
 
-export default function DashboardPage() {
+type DashboardPageProps = {
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+};
+
+export default function DashboardPage({ searchParams }: DashboardPageProps) {
     const router = useRouter();
     const [activeTab, setActiveTab] = useState<TabId>("overview");
     const [prompt, setPrompt] = useState(
@@ -64,40 +68,33 @@ export default function DashboardPage() {
     );
     const [isGenerating, setIsGenerating] = useState(false);
     const [lastGeneratedAt, setLastGeneratedAt] = useState<string | null>(null);
-    const [supabaseStatus, setSupabaseStatus] = useState<string | null>(null);
 
-    // Light Supabase “connection” check – logs to console if configured
+    const [upgrade, setUpgrade] = useState<string | null>(null);
+    const [plan, setPlan] = useState<string | null>(null);
+    const [profile, setProfile] = useState<ProfileInfo | null>(null);
+    const [usage, setUsage] = useState<UsageSummary | null>(null);
+
     useEffect(() => {
-        const supabase = getSupabaseBrowserClient();
-        if (!supabase) {
-            setSupabaseStatus("Supabase not configured yet (using local demo data).");
-            return;
-        }
-
-        const check = async () => {
+        async function init() {
             try {
-                // Simple ping – list auth user (will be null in our fake login, but proves config works)
-                const {
-                    data: { user },
-                    error,
-                } = await supabase.auth.getUser();
-                if (error) {
-                    console.warn("[Supabase] auth.getUser error:", error.message);
-                }
-                console.log("[Supabase] Connected. Current user:", user?.id ?? "none");
-                setSupabaseStatus("Supabase connected. Ready for real data later.");
-            } catch (err: any) {
-                console.error("[Supabase] Connection check failed:", err?.message);
-                setSupabaseStatus("Supabase configured but connection check failed.");
-            }
-        };
+                const params = await searchParams;
+                const upgradeParam = typeof params?.upgrade === "string" ? params.upgrade : null;
+                const planParam = typeof params?.plan === "string" ? params.plan : null;
+                setUpgrade(upgradeParam);
+                setPlan(planParam);
 
-        void check();
-    }, []);
+                const { profile, usage } = await fetchProfileAndUsage();
+                setProfile(profile);
+                setUsage(usage);
+            } catch (err) {
+                console.error("Failed to init dashboard", err);
+            }
+        }
+        void init();
+    }, [searchParams]);
 
     const handleGenerate = async () => {
         setIsGenerating(true);
-        setSupabaseStatus((prev) => prev); // no-op, just keeps state
 
         // In the future, this is where we’d call the real AI backend & Supabase.
         // For now, we just simulate work and update “last generated” time.
@@ -142,7 +139,7 @@ export default function DashboardPage() {
                 <nav className="flex flex-1 flex-col gap-1 text-xs">
                     <SidebarLink href="/dashboard" label="Dashboard" active />
                     <SidebarLink href="/templates" label="My Sheets" />
-                    <SidebarLink href="/settings/profile" label="Settings" />
+                    <SidebarLink href="/settings" label="Settings" />
                     <SidebarLink href="/" label="Back to landing" />
 
                     <div className="mt-4">
@@ -213,6 +210,52 @@ export default function DashboardPage() {
 
                 {/* Content */}
                 <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-6">
+
+                    {/* Account Summary & Welcome */}
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between mb-2">
+                        <div>
+                            <h1 className="text-2xl font-semibold tracking-tight text-slate-50">
+                                Welcome back{profile?.fullName ? `, ${profile.fullName.split(" ")[0]}` : ""}.
+                            </h1>
+                            {upgrade === "success" && (
+                                <p className="mt-2 rounded-full border border-emerald-400/40 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-200 inline-flex items-center gap-2">
+                                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                    Plan updated successfully{plan ? ` to ${plan}.` : "!"}
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="mt-4 w-full max-w-xs rounded-2xl border border-slate-800 bg-slate-900/80 px-4 py-3 text-xs text-slate-200 shadow-sm lg:mt-0">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-[11px] uppercase tracking-[0.16em] text-slate-400">Current plan</p>
+                                    <p className="mt-1 text-sm font-semibold text-emerald-400">
+                                        {(profile?.plan ?? "free").toUpperCase()}
+                                    </p>
+                                </div>
+                                <Link
+                                    href="/settings"
+                                    className="rounded-full border border-slate-700 px-2 py-1 text-[11px] text-slate-200 hover:border-emerald-400/80 hover:text-emerald-200 transition"
+                                >
+                                    Settings
+                                </Link>
+                            </div>
+                            <div className="mt-3 border-t border-slate-800 pt-3 flex items-center justify-between">
+                                <div>
+                                    <p className="text-[11px] text-slate-400">Sheets this month</p>
+                                    <p className="mt-0.5 text-sm font-medium text-slate-50">
+                                        {usage?.sheetsThisMonth ?? 0}
+                                    </p>
+                                </div>
+                                {usage?.lastSheetAt && (
+                                    <p className="text-[10px] text-slate-500 text-right">
+                                        Last sheet: {new Date(usage.lastSheetAt).toLocaleDateString()}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Tabs */}
                     <div className="flex items-center gap-2 text-[11px]">
                         <TabButton
@@ -234,13 +277,6 @@ export default function DashboardPage() {
                             onClick={() => setActiveTab("history")}
                         />
                     </div>
-
-                    {/* Supabase status banner (small) */}
-                    {supabaseStatus && (
-                        <div className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-[10px] text-slate-300">
-                            {supabaseStatus}
-                        </div>
-                    )}
 
                     {/* Overview content = Prompt + Preview */}
                     {activeTab === "overview" && (
