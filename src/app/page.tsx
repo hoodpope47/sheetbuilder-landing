@@ -213,6 +213,10 @@ export default function HomePage() {
           <p className="mt-6 text-xs text-slate-500">
             <span className="mr-1">❤️</span> Trusted by thousands of operators, founders, and analysts.
           </p>
+
+          <p className="mt-3 text-[11px] text-slate-500 max-w-md mx-auto">
+            Build smarter, automate faster, and ship spreadsheets like a pro.
+          </p>
         </div>
       </section>
 
