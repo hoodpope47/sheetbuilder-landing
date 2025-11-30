@@ -1,6 +1,7 @@
 // src/app/page.tsx
 import Image from "next/image";
 import Link from "next/link";
+import { PricingSection } from "@/components/PricingSection";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -293,68 +294,7 @@ export default function HomePage() {
       </section>
 
       {/* PRICING SECTION */}
-      <section id="pricing" className="bg-slate-50">
-        <div className="mx-auto max-w-5xl px-4 py-16">
-          <div className="mb-8 text-center">
-            <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
-              Pricing
-            </h2>
-            <p className="mt-2 text-sm text-slate-600">
-              Start on the free tier, then upgrade when your team is living in the templates every day.
-            </p>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-3">
-            {PLANS.map((plan) => (
-              <div
-                key={plan.name}
-                className={`flex flex-col rounded-2xl border bg-white p-6 shadow-soft-card ${plan.highlight
-                  ? "border-neon shadow-lg"
-                  : "border-slate-200"
-                  }`}
-              >
-                <div className="mb-3 flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-slate-900">
-                    {plan.name}
-                  </h3>
-                  {plan.highlight && (
-                    <span className="rounded-full bg-neon-soft px-2 py-0.5 text-[10px] font-medium text-neon-dark">
-                      Most popular
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-slate-500">{plan.tagline}</p>
-                <div className="mt-4 flex items-baseline gap-1">
-                  <span className="text-2xl font-semibold text-slate-900">
-                    {plan.price}
-                  </span>
-                  {plan.price !== "$0" && (
-                    <span className="text-[11px] text-slate-500">/month</span>
-                  )}
-                </div>
-
-                <ul className="mt-4 flex-1 space-y-2 text-xs text-slate-600">
-                  {plan.features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-2">
-                      <span className="mt-[2px] h-3 w-3 flex-shrink-0 rounded-full bg-neon" />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <button
-                  className={`mt-6 w-full rounded-full px-4 py-2 text-xs font-semibold transition ${plan.highlight
-                    ? "bg-neon text-slate-900 hover:bg-neon-dark hover:text-white"
-                    : "border border-slate-200 text-slate-800 hover:bg-slate-50"
-                    }`}
-                >
-                  {plan.price === "$0" ? "Get started for free" : "Choose plan"}
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <PricingSection />
 
       <footer className="border-t border-slate-100 bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-6 text-[11px] text-slate-500">
