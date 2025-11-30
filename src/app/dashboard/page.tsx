@@ -2,11 +2,14 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { AristotleQuotes } from "@/components/AristotleQuotes";
 
 const TABS = ["Overview", "Schemas", "History"] as const;
 type TabKey = (typeof TABS)[number];
 
 export default function DashboardPage() {
+    const router = useRouter();
     const [activeTab, setActiveTab] = useState<TabKey>("Overview");
     const [prompt, setPrompt] = useState(
         "Create a sales pipeline tracker with stages, deal value, and probability."
@@ -66,12 +69,7 @@ export default function DashboardPage() {
                     </button>
                 </nav>
 
-                <div className="px-4 py-4 border-t border-slate-800 text-[11px] text-slate-400">
-                    <p className="mb-1 font-medium text-slate-300">
-                        Perfectly matching the clean Montee vibe — but legally original.
-                    </p>
-                    <p>Neon-green themed. Built for people who live in Google Sheets.</p>
-                </div>
+                <AristotleQuotes />
             </aside>
 
             {/* Main content */}
@@ -90,7 +88,10 @@ export default function DashboardPage() {
                         <button className="hidden sm:inline-flex items-center gap-1 rounded-full border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-900">
                             Changelog
                         </button>
-                        <button className="inline-flex items-center gap-2 rounded-full bg-emerald-400 px-4 py-1.5 text-xs font-semibold text-slate-950 shadow-[0_0_30px_rgba(16,185,129,0.55)] hover:bg-emerald-300 transition">
+                        <button
+                            onClick={() => router.push("/billing")}
+                            className="inline-flex items-center gap-2 rounded-full bg-emerald-400 px-4 py-1.5 text-xs font-semibold text-slate-950 shadow-[0_0_30px_rgba(16,185,129,0.55)] hover:bg-emerald-300 transition"
+                        >
                             <span>Upgrade</span>
                         </button>
                     </div>
@@ -105,8 +106,8 @@ export default function DashboardPage() {
                                 type="button"
                                 onClick={() => setActiveTab(tab)}
                                 className={`relative px-2.5 py-2 capitalize ${activeTab === tab
-                                        ? "text-emerald-300"
-                                        : "text-slate-400 hover:text-slate-200"
+                                    ? "text-emerald-300"
+                                    : "text-slate-400 hover:text-slate-200"
                                     }`}
                             >
                                 {tab}

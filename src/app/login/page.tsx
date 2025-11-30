@@ -4,6 +4,7 @@ import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { authenticate } from "@/lib/auth";
 import { setUser } from "@/lib/session";
+import { logLogin } from "@/lib/accountLog";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -30,8 +31,9 @@ export default function LoginPage() {
       return;
     }
 
-    // Dev-only session
+    // Dev-only session + logging
     setUser("admin");
+    logLogin("admin");
     router.push("/dashboard");
   };
 
