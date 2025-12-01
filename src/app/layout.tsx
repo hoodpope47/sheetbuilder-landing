@@ -1,5 +1,5 @@
-// src/app/layout.tsx
 import type { Metadata } from "next";
+import { ThemeProvider } from "@/lib/theme";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -15,8 +15,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-white text-slate-900">
-        {children}
+      <body className="bg-slate-950 text-slate-50 antialiased">
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );

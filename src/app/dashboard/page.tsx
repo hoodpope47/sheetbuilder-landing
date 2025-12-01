@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { fetchProfileAndUsage, type ProfileInfo, type UsageSummary } from "@/lib/usage";
+import { fetchOrCreateProfile } from "@/lib/userClient";
+import { supabase } from "@/lib/supabaseClient";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 type TabId = "overview" | "schemas" | "history";
 
@@ -53,11 +55,16 @@ const PROMPT_PRESETS = [
     "KPI dashboard for marketing and sales.",
 ];
 
-type DashboardPageProps = {
-    searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+type UsageStatsRow = {
+    id: string;
+    user_id: string;
+    month: string; // e.g., "2025-11"
+    sheets_created: number;
+    created_at: string;
+    updated_at: string;
 };
 
-export default function DashboardPage({ searchParams }: DashboardPageProps) {
+export default function DashboardPage() {
     const router = useRouter();
     const [activeTab, setActiveTab] = useState<TabId>("overview");
     const [prompt, setPrompt] = useState(
@@ -69,43 +76,63 @@ export default function DashboardPage({ searchParams }: DashboardPageProps) {
     const [isGenerating, setIsGenerating] = useState(false);
     const [lastGeneratedAt, setLastGeneratedAt] = useState<string | null>(null);
 
-    const [upgrade, setUpgrade] = useState<string | null>(null);
-    const [plan, setPlan] = useState<string | null>(null);
-    const [profile, setProfile] = useState<ProfileInfo | null>(null);
-    const [usage, setUsage] = useState<UsageSummary | null>(null);
+    const [displayName, setDisplayName] = useState<string>("Demo");
+    const [currentPlan, setCurrentPlan] = useState<string>("Free");
+    const [sheetsThisMonth, setSheetsThisMonth] = useState<number>(0);
 
     useEffect(() => {
-        async function init() {
-            try {
-                const params = await searchParams;
-                const upgradeParam = typeof params?.upgrade === "string" ? params.upgrade : null;
-                const planParam = typeof params?.plan === "string" ? params.plan : null;
-                setUpgrade(upgradeParam);
-                setPlan(planParam);
+        let cancelled = false;
 
-                const { profile, usage } = await fetchProfileAndUsage();
-                setProfile(profile);
-                setUsage(usage);
+        async function load() {
+            try {
+                const profile = await fetchOrCreateProfile();
+                if (!profile || cancelled) return;
+
+                if (!cancelled) {
+                    setDisplayName(profile.full_name || "Demo");
+                }
+
+                const { data: usageData } = await supabase
+                    .from("usage_stats")
+                    .select("*")
+                    .eq("user_id", profile.id)
+                    .order("month", { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+
+                if (!cancelled && usageData) {
+                    setSheetsThisMonth((usageData as UsageStatsRow).sheets_created ?? 0);
+                }
+
+                const { data: sub } = await supabase
+                    .from("user_subscriptions")
+                    .select("current_plan")
+                    .eq("user_id", profile.id)
+                    .maybeSingle();
+
+                if (!cancelled && sub?.current_plan) {
+                    setCurrentPlan(String(sub.current_plan).toUpperCase());
+                }
             } catch (err) {
-                console.error("Failed to init dashboard", err);
+                console.error("[Dashboard] failed to load profile/usage", err);
             }
         }
-        void init();
-    }, [searchParams]);
+
+        load();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     const handleGenerate = async () => {
         setIsGenerating(true);
-
-        // In the future, this is where we’d call the real AI backend & Supabase.
-        // For now, we just simulate work and update “last generated” time.
+        // Simulate generation
         await new Promise((resolve) => setTimeout(resolve, 900));
-
         setLastGeneratedAt(new Date().toLocaleTimeString());
         setIsGenerating(false);
     };
 
     const handleLogout = () => {
-        // Keep this simple: clear any local “login” state, then go back to home.
         try {
             if (typeof window !== "undefined") {
                 window.localStorage.removeItem("sheetbuilder_login");
@@ -117,9 +144,9 @@ export default function DashboardPage({ searchParams }: DashboardPageProps) {
     };
 
     return (
-        <main className="min-h-screen bg-slate-950 text-slate-50 flex">
+        <main className="min-h-screen bg-slate-950 text-slate-50 flex transition-colors duration-300">
             {/* Sidebar */}
-            <aside className="hidden w-64 flex-col border-r border-slate-800 bg-slate-950/95 px-4 py-4 sm:flex">
+            <aside className="hidden w-64 flex-col border-r border-slate-800 bg-slate-950/95 px-4 py-4 sm:flex sb-surface">
                 {/* Brand */}
                 <div className="mb-4 flex items-center gap-2">
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-400 text-xs font-semibold text-slate-950">
@@ -138,7 +165,7 @@ export default function DashboardPage({ searchParams }: DashboardPageProps) {
                 {/* Nav */}
                 <nav className="flex flex-1 flex-col gap-1 text-xs">
                     <SidebarLink href="/dashboard" label="Dashboard" active />
-                    <SidebarLink href="/templates" label="My Sheets" />
+                    <SidebarLink href="/sheets" label="My Sheets" />
                     <SidebarLink href="/settings" label="Settings" />
                     <SidebarLink href="/" label="Back to landing" />
 
@@ -152,8 +179,8 @@ export default function DashboardPage({ searchParams }: DashboardPageProps) {
                     </div>
                 </nav>
 
-                {/* Footer – rotating Aristotle quote placeholder */}
-                <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-900/70 p-3 text-[10px] text-slate-300">
+                {/* Footer */}
+                <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-900/70 p-3 text-[10px] text-slate-300 sb-surface-muted">
                     <p className="font-semibold text-slate-100">Daily note</p>
                     <p className="mt-1 italic text-slate-300">
                         “We are what we repeatedly do. Excellence, then, is not an act but a
@@ -165,8 +192,8 @@ export default function DashboardPage({ searchParams }: DashboardPageProps) {
 
             {/* Main workspace */}
             <section className="flex-1">
-                {/* Top bar (for mobile + actions) */}
-                <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur">
+                {/* Top bar */}
+                <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur sb-surface">
                     <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
                         <div className="flex items-center gap-2 sm:hidden">
                             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-400 text-xs font-semibold text-slate-950">
@@ -176,9 +203,7 @@ export default function DashboardPage({ searchParams }: DashboardPageProps) {
                                 <span className="text-xs font-semibold text-slate-100">
                                     AI Sheet Builder
                                 </span>
-                                <span className="text-[10px] text-slate-400">
-                                    Workspace
-                                </span>
+                                <span className="text-[10px] text-slate-400">Workspace</span>
                             </div>
                         </div>
 
@@ -191,7 +216,8 @@ export default function DashboardPage({ searchParams }: DashboardPageProps) {
                             </span>
                         </div>
 
-                        <div className="flex items-center gap-2 text-xs">
+                        <div className="flex items-center gap-3 text-xs">
+                            <ThemeToggle />
                             <Link
                                 href="/pricing"
                                 className="hidden rounded-full border border-slate-700 px-3 py-1 text-slate-200 hover:border-emerald-400/70 hover:text-emerald-200 transition sm:inline-flex"
@@ -210,48 +236,53 @@ export default function DashboardPage({ searchParams }: DashboardPageProps) {
 
                 {/* Content */}
                 <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-6">
-
                     {/* Account Summary & Welcome */}
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between mb-2">
-                        <div>
-                            <h1 className="text-2xl font-semibold tracking-tight text-slate-50">
-                                Welcome back{profile?.fullName ? `, ${profile.fullName.split(" ")[0]}` : ""}.
-                            </h1>
-                            {upgrade === "success" && (
-                                <p className="mt-2 rounded-full border border-emerald-400/40 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-200 inline-flex items-center gap-2">
-                                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                    Plan updated successfully{plan ? ` to ${plan}.` : "!"}
-                                </p>
-                            )}
-                        </div>
+                    <div>
+                        <h1 className="text-2xl font-semibold tracking-tight text-slate-50">
+                            Welcome back, {displayName}.
+                        </h1>
 
-                        <div className="mt-4 w-full max-w-xs rounded-2xl border border-slate-800 bg-slate-900/80 px-4 py-3 text-xs text-slate-200 shadow-sm lg:mt-0">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-[11px] uppercase tracking-[0.16em] text-slate-400">Current plan</p>
-                                    <p className="mt-1 text-sm font-semibold text-emerald-400">
-                                        {(profile?.plan ?? "free").toUpperCase()}
-                                    </p>
-                                </div>
-                                <Link
-                                    href="/settings"
-                                    className="rounded-full border border-slate-700 px-2 py-1 text-[11px] text-slate-200 hover:border-emerald-400/80 hover:text-emerald-200 transition"
-                                >
-                                    Settings
-                                </Link>
+                        <div className="mt-4 flex flex-col gap-4 md:flex-row">
+                            <div className="sb-surface flex-1 rounded-2xl border border-slate-800/80 bg-slate-900/70 px-4 py-4">
+                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-400">
+                                    Workspace
+                                </p>
+                                <p className="mt-1 text-sm text-slate-300">
+                                    Describe the sheet you need and preview the structure instantly.
+                                </p>
                             </div>
-                            <div className="mt-3 border-t border-slate-800 pt-3 flex items-center justify-between">
-                                <div>
-                                    <p className="text-[11px] text-slate-400">Sheets this month</p>
-                                    <p className="mt-0.5 text-sm font-medium text-slate-50">
-                                        {usage?.sheetsThisMonth ?? 0}
+
+                            <div className="sb-surface w-full max-w-xs rounded-2xl border border-slate-800/80 bg-slate-900/70 px-4 py-4">
+                                <div className="flex items-center justify-between gap-2">
+                                    <div>
+                                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                                            Current plan
+                                        </p>
+                                        <p className="mt-1 text-sm font-semibold text-emerald-400">
+                                            {currentPlan}
+                                        </p>
+                                    </div>
+                                    <Link
+                                        href="/settings?tab=billing"
+                                        className="inline-flex items-center rounded-full border border-slate-600 px-3 py-1 text-[11px] font-medium text-slate-100 hover:border-emerald-400/70 hover:text-emerald-200"
+                                    >
+                                        Settings
+                                    </Link>
+                                </div>
+                                <div className="mt-3 text-xs text-slate-300">
+                                    <p className="flex items-baseline justify-between">
+                                        <span>Sheets this month</span>
+                                        <span className="font-semibold text-slate-50">
+                                            {sheetsThisMonth}
+                                        </span>
                                     </p>
                                 </div>
-                                {usage?.lastSheetAt && (
-                                    <p className="text-[10px] text-slate-500 text-right">
-                                        Last sheet: {new Date(usage.lastSheetAt).toLocaleDateString()}
-                                    </p>
-                                )}
+                                <button
+                                    className="mt-3 inline-flex w-full items-center justify-center rounded-full bg-emerald-400 px-3 py-1.5 text-[11px] font-semibold text-slate-950 hover:bg-emerald-300"
+                                    onClick={() => (window.location.href = "/pricing")}
+                                >
+                                    Upgrade workspace
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -282,7 +313,7 @@ export default function DashboardPage({ searchParams }: DashboardPageProps) {
                     {activeTab === "overview" && (
                         <div className="grid gap-4 lg:grid-cols-2">
                             {/* Prompt input card */}
-                            <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 shadow-sm">
+                            <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 shadow-sm sb-surface">
                                 <div className="flex items-center justify-between gap-2">
                                     <div>
                                         <h2 className="text-xs font-semibold text-slate-100">
@@ -305,7 +336,7 @@ export default function DashboardPage({ searchParams }: DashboardPageProps) {
                                             setPrompt(e.target.value);
                                             setSelectedPresetIndex(null);
                                         }}
-                                        className="min-h-[140px] w-full resize-none rounded-xl border border-slate-800 bg-slate-950/80 px-3 py-2 text-xs text-slate-50 placeholder:text-slate-500 focus:border-emerald-400/80 focus:outline-none focus:ring-0"
+                                        className="min-h-[140px] w-full resize-none rounded-xl border border-slate-800 bg-slate-950/80 px-3 py-2 text-xs text-slate-50 placeholder:text-slate-500 focus:border-emerald-400/80 focus:outline-none focus:ring-0 sb-surface-muted"
                                         placeholder="Describe the sheet you want to generate..."
                                     />
                                 </div>
@@ -355,7 +386,7 @@ export default function DashboardPage({ searchParams }: DashboardPageProps) {
                             </div>
 
                             {/* Generated preview card */}
-                            <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 shadow-sm">
+                            <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 shadow-sm sb-surface">
                                 <div className="flex items-center justify-between gap-2">
                                     <div>
                                         <h2 className="text-xs font-semibold text-slate-100">
@@ -367,7 +398,7 @@ export default function DashboardPage({ searchParams }: DashboardPageProps) {
                                         </p>
                                     </div>
                                     <div className="flex flex-col items-end text-[10px] text-slate-400">
-                                        <span className="rounded-full border border-emerald-500/60 bg-emerald-500/10 px-2 py-0.5 text-[9px] text-emerald-300">
+                                        <span className="rounded-full border border-emerald-500/60 bg-emerald-500/10 px-2 py-0.5 text-[9px] text-emerald-300 sb-chip">
                                             Draft · not yet pushed
                                         </span>
                                         {lastGeneratedAt && (
@@ -378,7 +409,7 @@ export default function DashboardPage({ searchParams }: DashboardPageProps) {
                                     </div>
                                 </div>
 
-                                <div className="mt-4 overflow-hidden rounded-xl border border-slate-800 bg-slate-950/70">
+                                <div className="mt-4 overflow-hidden rounded-xl border border-slate-800 bg-slate-950/70 sb-surface-muted">
                                     <div className="flex items-center justify-between border-b border-slate-800 px-3 py-2 text-[11px] text-slate-300">
                                         <div className="flex items-center gap-2">
                                             <span className="h-2 w-2 rounded-full bg-emerald-400" />
@@ -462,9 +493,9 @@ export default function DashboardPage({ searchParams }: DashboardPageProps) {
                         </div>
                     )}
 
-                    {/* Placeholder content for Schemas & History tabs – simple, brand-consistent */}
+                    {/* Placeholder content for Schemas & History tabs */}
                     {activeTab === "schemas" && (
-                        <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 text-xs text-slate-300">
+                        <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 text-xs text-slate-300 sb-surface">
                             <h2 className="text-sm font-semibold text-slate-100">
                                 Saved schemas
                             </h2>
@@ -483,7 +514,7 @@ export default function DashboardPage({ searchParams }: DashboardPageProps) {
                     )}
 
                     {activeTab === "history" && (
-                        <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 text-xs text-slate-300">
+                        <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 text-xs text-slate-300 sb-surface">
                             <h2 className="text-sm font-semibold text-slate-100">
                                 Generation history
                             </h2>

@@ -1,6 +1,6 @@
 "use client";
 
-import { getBrowserSupabaseClient } from "./supabaseClient";
+import { supabase } from "./supabaseClient";
 
 export type PlanTier = "free" | "starter" | "pro" | "enterprise";
 
@@ -33,7 +33,7 @@ export async function fetchProfileAndUsage(): Promise<{
     usage: UsageSummary;
 }> {
     const demoUserId = ensureDemoUserId();
-    const client = getBrowserSupabaseClient();
+    const client = supabase;
 
     // Fallback mock if Supabase is not configured
     if (!client) {
@@ -112,7 +112,7 @@ export async function fetchProfileAndUsage(): Promise<{
 }
 
 export async function logSheetCreated(sheetType: string): Promise<void> {
-    const client = getBrowserSupabaseClient();
+    const client = supabase;
     const demoUserId = ensureDemoUserId();
 
     if (!client) {

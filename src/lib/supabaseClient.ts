@@ -1,27 +1,34 @@
-"use client";
+import { createClient } from "@supabase/supabase-js";
 
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-let browserClient: SupabaseClient | null = null;
-
-export function getBrowserSupabaseClient(): SupabaseClient | null {
-    if (browserClient) return browserClient;
-
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-    if (!url || !anonKey) {
-        console.warn(
-            "[Supabase] NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY is missing. Falling back to mock data."
-        );
-        return null;
-    }
-
-    browserClient = createClient(url, anonKey, {
-        auth: {
-            persistSession: false,
-        },
-    });
-
-    return browserClient;
+if (!supabaseUrl || !supabaseAnonKey) {
+    console.warn("[supabaseClient] Missing SUPABASE env vars");
 }
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+        persistSession: true,
+    },
+});
+
+// Helper type for rows
+export type ProfileRow = {
+    id: string;
+    email: string | null;
+    full_name: string | null;
+    company: string | null;
+    role: string | null;
+    phone: string | null;
+    avatar_url: string | null;
+    created_at: string;
+};
+
+export type UserSettingsRow = {
+    id: string;
+    user_id: string;
+    theme: "dark" | "light";
+    created_at: string;
+    updated_at: string;
+};

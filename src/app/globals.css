@@ -28,6 +28,32 @@ svg {
   image-rendering: -webkit-optimize-contrast;
 }
 
+/* Light / dark theme helpers */
+body.theme-dark {
+  background-color: #020617;
+  color: #e5e7eb;
+}
+
+body.theme-light {
+  background-color: #f9fafb;
+  color: #020617;
+}
+
+/* Make common surfaces adapt */
+body.theme-light .sb-surface {
+  background-color: #ffffff;
+  border-color: rgba(148, 163, 184, 0.6);
+}
+
+body.theme-light .sb-surface-muted {
+  background-color: #f3f4f6;
+}
+
+body.theme-light .sb-chip {
+  background-color: #e5f9f4;
+  color: #065f46;
+}
+
 /* Logos marquee animation */
 @keyframes logo-marquee {
   0% {
