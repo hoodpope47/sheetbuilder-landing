@@ -2,7 +2,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { PricingSection } from "@/components/PricingSection";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -174,7 +173,6 @@ export default function HomePage() {
             <Link href="#pricing" className="text-slate-600 hover:text-slate-900">
               Pricing
             </Link>
-            <ThemeToggle />
             <Link
               href="/login"
               className="rounded-full border border-slate-200 px-4 py-1.5 text-xs font-medium hover:bg-slate-50"

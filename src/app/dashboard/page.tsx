@@ -1,582 +1,202 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { fetchOrCreateProfile } from "@/lib/userClient";
-import { supabase } from "@/lib/supabaseClient";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import {
+    LineChart,
+    Line,
+    XAxis,
+    YAxis,
+    Tooltip,
+    ResponsiveContainer,
+    PieChart,
+    Pie,
+    Cell,
+} from "recharts";
 
-type TabId = "overview" | "schemas" | "history";
-
-type PreviewRow = {
-    stage: string;
-    dealName: string;
-    owner: string;
-    value: string;
-    prob: string;
-    weighted: string;
-    closeDate: string;
-};
-
-const SAMPLE_ROWS: PreviewRow[] = [
-    {
-        stage: "New Lead",
-        dealName: "Inbound – Website form",
-        owner: "Alex",
-        value: "$5,000",
-        prob: "20%",
-        weighted: "$1,000",
-        closeDate: "2025-01-12",
-    },
-    {
-        stage: "Qualified",
-        dealName: "Referral – Agency",
-        owner: "Mia",
-        value: "$12,000",
-        prob: "45%",
-        weighted: "$5,400",
-        closeDate: "2025-01-20",
-    },
-    {
-        stage: "Proposal Sent",
-        dealName: "Expansion – Existing client",
-        owner: "Jordan",
-        value: "$18,500",
-        prob: "60%",
-        weighted: "$11,100",
-        closeDate: "2025-01-28",
-    },
+const usageTrend = [
+    { month: "Jan", sheets: 4 },
+    { month: "Feb", sheets: 7 },
+    { month: "Mar", sheets: 10 },
+    { month: "Apr", sheets: 13 },
+    { month: "May", sheets: 16 },
+    { month: "Jun", sheets: 20 },
 ];
 
-const PROMPT_PRESETS = [
-    "CRM funnel with stages, deal value, and probability.",
-    "Income & expense tracker with monthly rollups.",
-    "KPI dashboard for marketing and sales.",
+const sheetsByCategory = [
+    { name: "Sales", value: 8 },
+    { name: "Finance", value: 5 },
+    { name: "Ops", value: 4 },
+    { name: "Other", value: 3 },
 ];
 
-type UsageStatsRow = {
-    id: string;
-    user_id: string;
-    month: string; // e.g., "2025-11"
-    sheets_created: number;
-    created_at: string;
-    updated_at: string;
-};
+const PIE_COLORS = ["#10b981", "#0ea5e9", "#f97316", "#6366f1"];
 
-export default function DashboardPage() {
-    const router = useRouter();
-    const [activeTab, setActiveTab] = useState<TabId>("overview");
-    const [prompt, setPrompt] = useState(
-        "Create a sales pipeline tracker with stages, deal value, and probability."
-    );
-    const [selectedPresetIndex, setSelectedPresetIndex] = useState<number | null>(
-        null
-    );
-    const [isGenerating, setIsGenerating] = useState(false);
-    const [lastGeneratedAt, setLastGeneratedAt] = useState<string | null>(null);
+export default function DashboardOverviewPage() {
+    const currentPlan = "Free";
+    const renewsInDays = 12;
+    const usedThisMonth = 0;
+    const monthlyLimit: number = 5;
 
-    const [displayName, setDisplayName] = useState<string>("Demo");
-    const [currentPlan, setCurrentPlan] = useState<string>("Free");
-    const [sheetsThisMonth, setSheetsThisMonth] = useState<number>(0);
-
-    useEffect(() => {
-        let cancelled = false;
-
-        async function load() {
-            try {
-                const profile = await fetchOrCreateProfile();
-                if (!profile || cancelled) return;
-
-                if (!cancelled) {
-                    setDisplayName(profile.full_name || "Demo");
-                }
-
-                const { data: usageData } = await supabase
-                    .from("usage_stats")
-                    .select("*")
-                    .eq("user_id", profile.id)
-                    .order("month", { ascending: false })
-                    .limit(1)
-                    .maybeSingle();
-
-                if (!cancelled && usageData) {
-                    setSheetsThisMonth((usageData as UsageStatsRow).sheets_created ?? 0);
-                }
-
-                const { data: sub } = await supabase
-                    .from("user_subscriptions")
-                    .select("current_plan")
-                    .eq("user_id", profile.id)
-                    .maybeSingle();
-
-                if (!cancelled && sub?.current_plan) {
-                    setCurrentPlan(String(sub.current_plan).toUpperCase());
-                }
-            } catch (err) {
-                console.error("[Dashboard] failed to load profile/usage", err);
-            }
-        }
-
-        load();
-        return () => {
-            cancelled = true;
-        };
-    }, []);
-
-    const handleGenerate = async () => {
-        setIsGenerating(true);
-        // Simulate generation
-        await new Promise((resolve) => setTimeout(resolve, 900));
-        setLastGeneratedAt(new Date().toLocaleTimeString());
-        setIsGenerating(false);
-    };
-
-    const handleLogout = () => {
-        try {
-            if (typeof window !== "undefined") {
-                window.localStorage.removeItem("sheetbuilder_login");
-            }
-        } catch {
-            // ignore
-        }
-        router.push("/login");
-    };
+    const usagePercent =
+        monthlyLimit === 0 ? 0 : Math.round((usedThisMonth / monthlyLimit) * 100);
 
     return (
-        <main className="min-h-screen bg-slate-950 text-slate-50 flex transition-colors duration-300">
-            {/* Sidebar */}
-            <aside className="hidden w-64 flex-col border-r border-slate-800 bg-slate-950/95 px-4 py-4 sm:flex sb-surface">
-                {/* Brand */}
-                <div className="mb-4 flex items-center gap-2">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-400 text-xs font-semibold text-slate-950">
-                        A
-                    </div>
-                    <div className="flex flex-col">
-                        <span className="text-xs font-semibold text-slate-100">
-                            AI Sheet Builder
-                        </span>
-                        <span className="text-[10px] text-slate-400">
-                            Automate your job in Google Sheets
-                        </span>
-                    </div>
-                </div>
+        <div className="space-y-6">
+            <div>
+                <h1 className="text-xl font-semibold tracking-tight">
+                    Welcome back, Demo.
+                </h1>
+                <p className="mt-1 text-sm text-slate-600">
+                    Here&apos;s how your sheets and automations are doing this month.
+                </p>
+            </div>
 
-                {/* Nav */}
-                <nav className="flex flex-1 flex-col gap-1 text-xs">
-                    <SidebarLink href="/dashboard" label="Dashboard" active />
-                    <SidebarLink href="/sheets" label="My Sheets" />
-                    <SidebarLink href="/settings" label="Settings" />
-                    <SidebarLink href="/" label="Back to landing" />
-
-                    <div className="mt-4">
-                        <Link
-                            href="/pricing"
-                            className="inline-flex w-full items-center justify-center rounded-full bg-emerald-400 px-3 py-1.5 text-[11px] font-semibold text-slate-950 hover:bg-emerald-300 transition"
-                        >
-                            Upgrade workspace
-                        </Link>
-                    </div>
-                </nav>
-
-                {/* Footer */}
-                <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-900/70 p-3 text-[10px] text-slate-300 sb-surface-muted">
-                    <p className="font-semibold text-slate-100">Daily note</p>
-                    <p className="mt-1 italic text-slate-300">
-                        “We are what we repeatedly do. Excellence, then, is not an act but a
-                        habit.”
+            {/* Stat cards */}
+            <div className="grid gap-4 md:grid-cols-4">
+                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
+                    <p className="text-xs font-medium text-slate-500">Sheets created</p>
+                    <p className="mt-2 text-2xl font-semibold text-slate-900">
+                        {usedThisMonth}
                     </p>
-                    <p className="mt-1 text-[9px] text-slate-500">– Aristotle</p>
+                    <p className="mt-1 text-[11px] text-slate-500">This month</p>
                 </div>
-            </aside>
 
-            {/* Main workspace */}
-            <section className="flex-1">
-                {/* Top bar */}
-                <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur sb-surface">
-                    <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-                        <div className="flex items-center gap-2 sm:hidden">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-400 text-xs font-semibold text-slate-950">
-                                A
-                            </div>
-                            <div className="flex flex-col">
-                                <span className="text-xs font-semibold text-slate-100">
-                                    AI Sheet Builder
-                                </span>
-                                <span className="text-[10px] text-slate-400">Workspace</span>
-                            </div>
-                        </div>
+                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
+                    <p className="text-xs font-medium text-slate-500">Total sheets</p>
+                    <p className="mt-2 text-2xl font-semibold text-slate-900">12</p>
+                    <p className="mt-1 text-[11px] text-slate-500">All time</p>
+                </div>
 
-                        <div className="mx-auto hidden flex-col sm:flex">
-                            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-400">
-                                Workspace
-                            </span>
-                            <span className="text-xs text-slate-300">
-                                Describe the sheet you need and preview the structure instantly.
-                            </span>
-                        </div>
+                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
+                    <p className="text-xs font-medium text-slate-500">Current plan</p>
+                    <p className="mt-2 text-lg font-semibold text-emerald-600">
+                        {currentPlan}
+                    </p>
+                    <p className="mt-1 text-[11px] text-slate-500">
+                        Renews in {renewsInDays} days
+                    </p>
+                </div>
 
-                        <div className="flex items-center gap-3 text-xs">
-                            <ThemeToggle />
-                            <Link
-                                href="/pricing"
-                                className="hidden rounded-full border border-slate-700 px-3 py-1 text-slate-200 hover:border-emerald-400/70 hover:text-emerald-200 transition sm:inline-flex"
-                            >
-                                Pricing
-                            </Link>
-                            <button
-                                onClick={handleLogout}
-                                className="rounded-full border border-slate-700 px-3 py-1 text-slate-200 hover:border-red-500/70 hover:text-red-200 transition"
-                            >
-                                Log out
-                            </button>
+                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
+                    <p className="text-xs font-medium text-slate-500">Usage</p>
+                    <p className="mt-2 text-2xl font-semibold text-slate-900">
+                        {usagePercent}%
+                    </p>
+                    <p className="mt-1 text-[11px] text-slate-500">
+                        {usedThisMonth} / {monthlyLimit} sheets this month
+                    </p>
+                </div>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-3">
+                {/* Trend chart */}
+                <div className="lg:col-span-2 rounded-2xl border border-slate-200 bg-white px-4 py-4">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-xs font-semibold text-slate-500">
+                                Usage trend
+                            </p>
+                            <p className="text-sm font-semibold text-slate-900">
+                                Sheets generated over time
+                            </p>
                         </div>
+                        <span className="rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-700">
+                            Demo data
+                        </span>
                     </div>
-                </header>
+                    <div className="mt-4 h-48">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={usageTrend}>
+                                <XAxis
+                                    dataKey="month"
+                                    stroke="#9ca3af"
+                                    fontSize={11}
+                                    tickLine={false}
+                                />
+                                <YAxis
+                                    stroke="#9ca3af"
+                                    fontSize={11}
+                                    tickLine={false}
+                                    width={32}
+                                />
+                                <Tooltip
+                                    contentStyle={{
+                                        borderRadius: 10,
+                                        borderColor: "#e5e7eb",
+                                        fontSize: 11,
+                                    }}
+                                />
+                                <Line
+                                    type="monotone"
+                                    dataKey="sheets"
+                                    stroke="#10b981"
+                                    strokeWidth={2}
+                                    dot={{ r: 3 }}
+                                />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
 
-                {/* Content */}
-                <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-6">
-                    {/* Account Summary & Welcome */}
-                    <div>
-                        <h1 className="text-2xl font-semibold tracking-tight text-slate-50">
-                            Welcome back, {displayName}.
-                        </h1>
-
-                        <div className="mt-4 flex flex-col gap-4 md:flex-row">
-                            <div className="sb-surface flex-1 rounded-2xl border border-slate-800/80 bg-slate-900/70 px-4 py-4">
-                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-400">
-                                    Workspace
-                                </p>
-                                <p className="mt-1 text-sm text-slate-300">
-                                    Describe the sheet you need and preview the structure instantly.
-                                </p>
-                            </div>
-
-                            <div className="sb-surface w-full max-w-xs rounded-2xl border border-slate-800/80 bg-slate-900/70 px-4 py-4">
-                                <div className="flex items-center justify-between gap-2">
-                                    <div>
-                                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                                            Current plan
-                                        </p>
-                                        <p className="mt-1 text-sm font-semibold text-emerald-400">
-                                            {currentPlan}
-                                        </p>
-                                    </div>
-                                    <Link
-                                        href="/settings?tab=billing"
-                                        className="inline-flex items-center rounded-full border border-slate-600 px-3 py-1 text-[11px] font-medium text-slate-100 hover:border-emerald-400/70 hover:text-emerald-200"
+                {/* Category pie */}
+                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
+                    <p className="text-xs font-semibold text-slate-500">
+                        Sheets by category
+                    </p>
+                    <p className="text-sm font-semibold text-slate-900">
+                        Where you use SheetBuilder the most
+                    </p>
+                    <div className="mt-4 flex items-center gap-4">
+                        <div className="h-40 w-40">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={sheetsByCategory}
+                                        dataKey="value"
+                                        innerRadius={40}
+                                        outerRadius={60}
+                                        paddingAngle={3}
                                     >
-                                        Settings
-                                    </Link>
-                                </div>
-                                <div className="mt-3 text-xs text-slate-300">
-                                    <p className="flex items-baseline justify-between">
-                                        <span>Sheets this month</span>
-                                        <span className="font-semibold text-slate-50">
-                                            {sheetsThisMonth}
-                                        </span>
-                                    </p>
-                                </div>
-                                <button
-                                    className="mt-3 inline-flex w-full items-center justify-center rounded-full bg-emerald-400 px-3 py-1.5 text-[11px] font-semibold text-slate-950 hover:bg-emerald-300"
-                                    onClick={() => (window.location.href = "/pricing")}
-                                >
-                                    Upgrade workspace
-                                </button>
-                            </div>
+                                        {sheetsByCategory.map((entry, index) => (
+                                            <Cell
+                                                key={entry.name}
+                                                fill={PIE_COLORS[index % PIE_COLORS.length]}
+                                            />
+                                        ))}
+                                    </Pie>
+                                </PieChart>
+                            </ResponsiveContainer>
                         </div>
-                    </div>
-
-                    {/* Tabs */}
-                    <div className="flex items-center gap-2 text-[11px]">
-                        <TabButton
-                            id="overview"
-                            label="Overview"
-                            active={activeTab === "overview"}
-                            onClick={() => setActiveTab("overview")}
-                        />
-                        <TabButton
-                            id="schemas"
-                            label="Schemas"
-                            active={activeTab === "schemas"}
-                            onClick={() => setActiveTab("schemas")}
-                        />
-                        <TabButton
-                            id="history"
-                            label="History"
-                            active={activeTab === "history"}
-                            onClick={() => setActiveTab("history")}
-                        />
-                    </div>
-
-                    {/* Overview content = Prompt + Preview */}
-                    {activeTab === "overview" && (
-                        <div className="grid gap-4 lg:grid-cols-2">
-                            {/* Prompt input card */}
-                            <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 shadow-sm sb-surface">
-                                <div className="flex items-center justify-between gap-2">
-                                    <div>
-                                        <h2 className="text-xs font-semibold text-slate-100">
-                                            Prompt input
-                                        </h2>
-                                        <p className="mt-1 text-[11px] text-slate-400">
-                                            Tell the builder what you want. You can reference funnels,
-                                            dashboards, content calendars, or anything custom.
-                                        </p>
-                                    </div>
-                                    <span className="rounded-full border border-slate-700 px-2 py-0.5 text-[9px] text-slate-400">
-                                        AI Sheet Builder · v1
-                                    </span>
-                                </div>
-
-                                <div className="mt-4">
-                                    <textarea
-                                        value={prompt}
-                                        onChange={(e) => {
-                                            setPrompt(e.target.value);
-                                            setSelectedPresetIndex(null);
-                                        }}
-                                        className="min-h-[140px] w-full resize-none rounded-xl border border-slate-800 bg-slate-950/80 px-3 py-2 text-xs text-slate-50 placeholder:text-slate-500 focus:border-emerald-400/80 focus:outline-none focus:ring-0 sb-surface-muted"
-                                        placeholder="Describe the sheet you want to generate..."
+                        <div className="space-y-2 text-xs">
+                            {sheetsByCategory.map((item, index) => (
+                                <div key={item.name} className="flex items-center gap-2">
+                                    <span
+                                        className="h-2.5 w-2.5 rounded-full"
+                                        style={{ backgroundColor: PIE_COLORS[index] }}
                                     />
-                                </div>
-
-                                <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
-                                    {PROMPT_PRESETS.map((label, idx) => (
-                                        <button
-                                            key={label}
-                                            type="button"
-                                            onClick={() => {
-                                                setPrompt(`Create a sheet that is a ${label}`);
-                                                setSelectedPresetIndex(idx);
-                                            }}
-                                            className={[
-                                                "rounded-full border px-3 py-1 transition",
-                                                selectedPresetIndex === idx
-                                                    ? "border-emerald-400/80 bg-emerald-500/10 text-emerald-200"
-                                                    : "border-slate-700 bg-slate-900 text-slate-200 hover:border-emerald-400/60 hover:text-emerald-200",
-                                            ].join(" ")}
-                                        >
-                                            {label}
-                                        </button>
-                                    ))}
-                                </div>
-
-                                <div className="mt-4 flex flex-wrap items-center gap-3 text-[11px]">
-                                    <button
-                                        type="button"
-                                        onClick={handleGenerate}
-                                        disabled={isGenerating}
-                                        className="inline-flex items-center rounded-full bg-emerald-400 px-4 py-1.5 text-xs font-semibold text-slate-950 hover:bg-emerald-300 transition disabled:opacity-60"
-                                    >
-                                        {isGenerating ? "Generating…" : "Generate sheet"}
-                                    </button>
-
-                                    <button
-                                        type="button"
-                                        className="inline-flex items-center rounded-full border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-200 hover:border-emerald-400/70 hover:text-emerald-200 transition"
-                                    >
-                                        Save as schema
-                                    </button>
-
-                                    <span className="text-[10px] text-slate-500">
-                                        No data is written to Google Sheets until you confirm.
+                                    <span className="text-slate-700">{item.name}</span>
+                                    <span className="ml-auto font-medium text-slate-900">
+                                        {item.value}
                                     </span>
                                 </div>
-                            </div>
-
-                            {/* Generated preview card */}
-                            <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 shadow-sm sb-surface">
-                                <div className="flex items-center justify-between gap-2">
-                                    <div>
-                                        <h2 className="text-xs font-semibold text-slate-100">
-                                            Generated Sheet Preview
-                                        </h2>
-                                        <p className="mt-1 text-[11px] text-slate-400">
-                                            This is a visual preview of the structure the AI will
-                                            generate in Google Sheets: tabs, columns, and sample rows.
-                                        </p>
-                                    </div>
-                                    <div className="flex flex-col items-end text-[10px] text-slate-400">
-                                        <span className="rounded-full border border-emerald-500/60 bg-emerald-500/10 px-2 py-0.5 text-[9px] text-emerald-300 sb-chip">
-                                            Draft · not yet pushed
-                                        </span>
-                                        {lastGeneratedAt && (
-                                            <span className="mt-1">
-                                                Last generated: {lastGeneratedAt}
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div className="mt-4 overflow-hidden rounded-xl border border-slate-800 bg-slate-950/70 sb-surface-muted">
-                                    <div className="flex items-center justify-between border-b border-slate-800 px-3 py-2 text-[11px] text-slate-300">
-                                        <div className="flex items-center gap-2">
-                                            <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                                            <span>sales_pipeline_v1</span>
-                                        </div>
-                                        <span className="rounded-full border border-slate-700 px-2 py-0.5 text-[9px] text-slate-400">
-                                            CRM Funnel · v1.0
-                                        </span>
-                                    </div>
-
-                                    <div className="overflow-x-auto text-[11px]">
-                                        <table className="min-w-full border-collapse">
-                                            <thead className="bg-slate-900/80">
-                                                <tr className="text-left text-slate-300">
-                                                    <th className="px-3 py-2 border-b border-slate-800">
-                                                        Stage
-                                                    </th>
-                                                    <th className="px-3 py-2 border-b border-slate-800">
-                                                        Deal Name
-                                                    </th>
-                                                    <th className="px-3 py-2 border-b border-slate-800">
-                                                        Owner
-                                                    </th>
-                                                    <th className="px-3 py-2 border-b border-slate-800">
-                                                        Value
-                                                    </th>
-                                                    <th className="px-3 py-2 border-b border-slate-800">
-                                                        Prob. %
-                                                    </th>
-                                                    <th className="px-3 py-2 border-b border-slate-800">
-                                                        Weighted
-                                                    </th>
-                                                    <th className="px-3 py-2 border-b border-slate-800">
-                                                        Close Date
-                                                    </th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {SAMPLE_ROWS.map((row, idx) => (
-                                                    <tr
-                                                        key={idx}
-                                                        className={
-                                                            idx % 2 === 0
-                                                                ? "bg-slate-950"
-                                                                : "bg-slate-950/80"
-                                                        }
-                                                    >
-                                                        <td className="px-3 py-2 border-b border-slate-900">
-                                                            {row.stage}
-                                                        </td>
-                                                        <td className="px-3 py-2 border-b border-slate-900">
-                                                            {row.dealName}
-                                                        </td>
-                                                        <td className="px-3 py-2 border-b border-slate-900">
-                                                            {row.owner}
-                                                        </td>
-                                                        <td className="px-3 py-2 border-b border-slate-900">
-                                                            {row.value}
-                                                        </td>
-                                                        <td className="px-3 py-2 border-b border-slate-900">
-                                                            {row.prob}
-                                                        </td>
-                                                        <td className="px-3 py-2 border-b border-slate-900">
-                                                            {row.weighted}
-                                                        </td>
-                                                        <td className="px-3 py-2 border-b border-slate-900">
-                                                            {row.closeDate}
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-
-                                    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-800 px-3 py-2 text-[10px] text-slate-400">
-                                        <span>Template: CRM Funnel · v1.0</span>
-                                        <span>Next action: Push to Google Sheets (coming soon)</span>
-                                    </div>
-                                </div>
-                            </div>
+                            ))}
                         </div>
-                    )}
-
-                    {/* Placeholder content for Schemas & History tabs */}
-                    {activeTab === "schemas" && (
-                        <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 text-xs text-slate-300 sb-surface">
-                            <h2 className="text-sm font-semibold text-slate-100">
-                                Saved schemas
-                            </h2>
-                            <p className="mt-1 text-[11px] text-slate-400">
-                                This is where your favorite prompts and sheet structures will live.
-                                We&apos;ll wire this up to Supabase once your backend is ready.
-                            </p>
-                            <div className="mt-4 rounded-xl border border-dashed border-slate-700 bg-slate-950/40 px-4 py-6 text-center text-[11px] text-slate-500">
-                                No schemas saved yet. Generate a sheet you like and click{" "}
-                                <span className="font-semibold text-slate-200">
-                                    Save as schema
-                                </span>{" "}
-                                to pin it here.
-                            </div>
-                        </div>
-                    )}
-
-                    {activeTab === "history" && (
-                        <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 text-xs text-slate-300 sb-surface">
-                            <h2 className="text-sm font-semibold text-slate-100">
-                                Generation history
-                            </h2>
-                            <p className="mt-1 text-[11px] text-slate-400">
-                                A lightweight log of your recent runs. Perfect for retracing
-                                prompts that worked well.
-                            </p>
-                            <div className="mt-4 rounded-xl border border-dashed border-slate-700 bg-slate-950/40 px-4 py-6 text-center text-[11px] text-slate-500">
-                                History tracking will go here. For now, keep experimenting with
-                                prompts — we&apos;ll start logging once the full backend is plugged
-                                in.
-                            </div>
-                        </div>
-                    )}
+                    </div>
                 </div>
-            </section>
-        </main>
-    );
-}
+            </div>
 
-type SidebarLinkProps = {
-    href: string;
-    label: string;
-    active?: boolean;
-};
-
-function SidebarLink({ href, label, active }: SidebarLinkProps) {
-    return (
-        <Link
-            href={href}
-            className={[
-                "flex items-center justify-between rounded-xl border px-3 py-2 text-xs transition",
-                active
-                    ? "border-emerald-400/80 bg-slate-900 text-emerald-200"
-                    : "border-slate-800 text-slate-300 hover:border-emerald-400/70 hover:text-emerald-200 hover:bg-slate-900/80",
-            ].join(" ")}
-        >
-            <span>{label}</span>
-        </Link>
-    );
-}
-
-type TabButtonProps = {
-    id: TabId;
-    label: string;
-    active: boolean;
-    onClick: () => void;
-};
-
-function TabButton({ label, active, onClick }: TabButtonProps) {
-    return (
-        <button
-            type="button"
-            onClick={onClick}
-            className={[
-                "rounded-full border px-3 py-1 transition",
-                active
-                    ? "border-emerald-400/80 bg-emerald-500/10 text-emerald-200"
-                    : "border-slate-700 bg-slate-900 text-slate-200 hover:border-emerald-400/60 hover:text-emerald-200",
-            ].join(" ")}
-        >
-            {label}
-        </button>
+            {/* Recent sheets list */}
+            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
+                <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-slate-500">Recent sheets</p>
+                    <button className="rounded-full border border-slate-200 px-3 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50">
+                        + New sheet
+                    </button>
+                </div>
+                <p className="mt-4 text-xs text-slate-500">
+                    No sheets created yet. Generate your first AI-built sheet from the
+                    “My Sheets” tab.
+                </p>
+            </div>
+        </div>
     );
 }
