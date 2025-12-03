@@ -7,6 +7,7 @@ import {
     updateUserEmail,
     updateUserPassword,
 } from "@/lib/userClient";
+import { LogoutButton } from "@/components/dashboard/LogoutButton";
 
 type TabId = "account" | "security" | "preferences" | "billing";
 
@@ -67,6 +68,15 @@ export default function SettingsPage() {
             {activeTab === "security" && <SecuritySection />}
             {activeTab === "preferences" && <PreferencesSection />}
             {activeTab === "billing" && <BillingSection />}
+
+            {/* Sign out section - always visible */}
+            <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+                <h2 className="text-sm font-semibold text-slate-900">Sign out</h2>
+                <p className="mt-1 text-xs text-slate-500">
+                    End your current session on this device. You can always sign back in later.
+                </p>
+                <LogoutButton />
+            </section>
         </div>
     );
 }

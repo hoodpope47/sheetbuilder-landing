@@ -473,6 +473,7 @@ export async function updateUserEmail(newEmail: string) {
     }
 }
 
+
 export async function updateUserPassword(newPassword: string) {
     try {
         const { error } = await supabase.auth.updateUser({ password: newPassword });
@@ -483,5 +484,68 @@ export async function updateUserPassword(newPassword: string) {
     } catch (error) {
         console.error("[userClient] Failed to update password", error);
         throw error;
+    }
+}
+
+// --- Dashboard User Helper for Server Components ---
+
+export type DashboardUser = {
+    email: string | null;
+    plan: string | null;
+    metadata?: Record<string, any> | null;
+};
+
+export async function getDashboardUser(): Promise<DashboardUser | null> {
+    try {
+        // Use supabaseServer for server-side auth check
+        const { supabaseServer } = await import("@/lib/supabaseServer");
+
+        const {
+            data: { user },
+        } = await supabaseServer.auth.getUser();
+
+        if (!user) {
+            return {
+                email: null,
+                plan: "free",
+                metadata: null,
+            };
+        }
+
+        // Check if we can hit Supabase for profile data
+        if (!canHitSupabase(user.id)) {
+            return {
+                email: user.email ?? null,
+                plan: "free",
+                metadata: user.user_metadata ?? null,
+            };
+        }
+
+        // Fetch profile data from the profiles table
+        const { data: profile } = await supabaseServer
+            .from("profiles")
+            .select("plan, metadata")
+            .eq("id", user.id)
+            .maybeSingle();
+
+        // First try profile.plan, then profile.metadata.plan, then user.user_metadata.plan, finally default to "free"
+        const plan =
+            (profile as any)?.plan ??
+            (profile as any)?.metadata?.plan ??
+            user.user_metadata?.plan ??
+            "free";
+
+        return {
+            email: user.email ?? null,
+            plan: plan,
+            metadata: (profile as any)?.metadata ?? user.user_metadata ?? null,
+        };
+    } catch (error) {
+        console.error("[userClient] Failed to get dashboard user", error);
+        return {
+            email: null,
+            plan: "free",
+            metadata: null,
+        };
     }
 }

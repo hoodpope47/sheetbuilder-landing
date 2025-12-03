@@ -37,6 +37,7 @@ export default function SignupPage() {
                 options: {
                     data: {
                         full_name: fullName,
+                        plan: "free",
                     },
                     ...(emailRedirectTo
                         ? {
