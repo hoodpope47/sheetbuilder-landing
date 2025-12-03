@@ -1,0 +1,311 @@
+"use client";
+
+import React, { useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+    LayoutDashboard,
+    FileSpreadsheet,
+    BarChart3,
+    CreditCard,
+    Settings,
+    Menu,
+    X,
+} from "lucide-react";
+
+type NavItem = {
+    label: string;
+    href: string;
+    icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+};
+
+const primaryNav: NavItem[] = [
+    {
+        label: "Overview",
+        href: "/dashboard",
+        icon: LayoutDashboard,
+    },
+    {
+        label: "My Sheets",
+        href: "/dashboard/sheets",
+        icon: FileSpreadsheet,
+    },
+    {
+        label: "Templates",
+        href: "/dashboard/templates",
+        icon: FileSpreadsheet,
+    },
+    {
+        label: "Usage & Limits",
+        href: "/dashboard/usage",
+        icon: BarChart3,
+    },
+];
+
+const secondaryNav: NavItem[] = [
+    {
+        label: "Billing",
+        href: "/dashboard/billing",
+        icon: CreditCard,
+    },
+    {
+        label: "Settings",
+        href: "/dashboard/settings",
+        icon: Settings,
+    },
+];
+
+const allNav: NavItem[] = [...primaryNav, ...secondaryNav];
+
+function isActivePath(pathname: string, href: string) {
+    if (href === "/dashboard") return pathname === "/dashboard";
+    return pathname.startsWith(href);
+}
+
+export function DashboardShell({ children }: { children: React.ReactNode }) {
+    const pathname = usePathname();
+    const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+    return (
+        <div className="min-h-screen bg-slate-100">
+            <div className="mx-auto max-w-6xl md:flex">
+                {/* DESKTOP SIDEBAR */}
+                <aside className="hidden h-screen w-60 flex-col border-r border-slate-200 bg-white md:flex">
+                    <div className="flex items-center gap-2 px-5 py-4">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500 text-xs font-semibold text-white">
+                            A
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-sm font-semibold text-slate-900">
+                                AI Sheet Builder
+                            </span>
+                            <span className="text-[11px] text-slate-500">
+                                Workspace dashboard
+                            </span>
+                        </div>
+                    </div>
+
+                    <nav className="mt-2 flex-1 space-y-6 px-3 pb-4">
+                        <div className="space-y-1">
+                            <p className="px-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                                Overview
+                            </p>
+                            {primaryNav.map((item) => {
+                                const Icon = item.icon;
+                                const active = isActivePath(pathname, item.href);
+                                return (
+                                    <Link
+                                        key={item.href}
+                                        href={item.href}
+                                        className={[
+                                            "flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition",
+                                            active
+                                                ? "bg-emerald-50 text-emerald-700"
+                                                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+                                        ].join(" ")}
+                                    >
+                                        <Icon className="h-4 w-4" />
+                                        <span>{item.label}</span>
+                                    </Link>
+                                );
+                            })}
+                        </div>
+
+                        <div className="space-y-1">
+                            <p className="px-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                                Account
+                            </p>
+                            {secondaryNav.map((item) => {
+                                const Icon = item.icon;
+                                const active = isActivePath(pathname, item.href);
+                                return (
+                                    <Link
+                                        key={item.href}
+                                        href={item.href}
+                                        className={[
+                                            "flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition",
+                                            active
+                                                ? "bg-emerald-50 text-emerald-700"
+                                                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+                                        ].join(" ")}
+                                    >
+                                        <Icon className="h-4 w-4" />
+                                        <span>{item.label}</span>
+                                    </Link>
+                                );
+                            })}
+                        </div>
+                    </nav>
+
+                    <div className="border-t border-slate-200 px-5 py-4 text-[11px] text-slate-400">
+                        SheetBuilder Workspace · 2025
+                    </div>
+                </aside>
+
+                {/* MAIN AREA */}
+                <div className="flex min-h-screen flex-1 flex-col">
+                    {/* HEADER: workspace + theme + avatar */}
+                    <header className="border-b border-slate-200 bg-slate-50">
+                        <div className="flex items-center justify-between px-4 py-3 md:px-6">
+                            <div className="flex items-center gap-2">
+                                {/* MOBILE MENU BUTTON */}
+                                <button
+                                    type="button"
+                                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm md:hidden"
+                                    onClick={() => setMobileNavOpen(true)}
+                                    aria-label="Open navigation"
+                                >
+                                    <Menu className="h-4 w-4" />
+                                </button>
+
+                                <div className="flex flex-col">
+                                    <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-600">
+                                        Workspace
+                                    </span>
+                                    <span className="text-xs text-slate-500">
+                                        Built for people who live in Google Sheets.
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                                {/* Theme pill (visual only for now) */}
+                                <button
+                                    type="button"
+                                    className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600 shadow-sm"
+                                >
+                                    <span className="inline-flex h-3 w-3 items-center justify-center rounded-full bg-slate-200">
+                                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                                    </span>
+                                    <span>Light mode</span>
+                                </button>
+
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">
+                                    U
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* MOBILE / TABLET TOP NAV TABS */}
+                        <div className="border-t border-slate-200 bg-slate-50">
+                            <div className="flex gap-2 overflow-x-auto px-3 pb-2 pt-1 text-sm md:px-6">
+                                {allNav.map((item) => {
+                                    const active = isActivePath(pathname, item.href);
+                                    return (
+                                        <Link
+                                            key={`top-${item.href}`}
+                                            href={item.href}
+                                            className={[
+                                                "whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium transition",
+                                                active
+                                                    ? "bg-emerald-100 text-emerald-800"
+                                                    : "bg-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-900",
+                                            ].join(" ")}
+                                        >
+                                            {item.label}
+                                        </Link>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* MAIN CONTENT */}
+                    <main className="flex-1 px-3 pb-8 pt-4 md:px-8 md:pt-6 space-y-4">
+                        {children}
+                    </main>
+                </div>
+            </div>
+
+            {/* MOBILE SLIDE-IN NAV OVERLAY */}
+            {mobileNavOpen && (
+                <div className="fixed inset-0 z-40 flex md:hidden">
+                    {/* Backdrop */}
+                    <div
+                        className="absolute inset-0 bg-slate-900/40"
+                        onClick={() => setMobileNavOpen(false)}
+                    />
+
+                    {/* Panel */}
+                    <div className="relative ml-0 h-full w-72 max-w-[80vw] bg-white shadow-xl">
+                        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+                            <div className="flex items-center gap-2">
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500 text-xs font-semibold text-white">
+                                    A
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="text-sm font-semibold text-slate-900">
+                                        AI Sheet Builder
+                                    </span>
+                                    <span className="text-[11px] text-slate-500">Navigation</span>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700"
+                                onClick={() => setMobileNavOpen(false)}
+                                aria-label="Close navigation"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+
+                        <nav className="space-y-4 px-3 py-3">
+                            <div className="space-y-1">
+                                <p className="px-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                                    Overview
+                                </p>
+                                {primaryNav.map((item) => {
+                                    const Icon = item.icon;
+                                    const active = isActivePath(pathname, item.href);
+                                    return (
+                                        <Link
+                                            key={`mobile-${item.href}`}
+                                            href={item.href}
+                                            onClick={() => setMobileNavOpen(false)}
+                                            className={[
+                                                "flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition",
+                                                active
+                                                    ? "bg-emerald-50 text-emerald-700"
+                                                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+                                            ].join(" ")}
+                                        >
+                                            <Icon className="h-4 w-4" />
+                                            <span>{item.label}</span>
+                                        </Link>
+                                    );
+                                })}
+                            </div>
+
+                            <div className="space-y-1">
+                                <p className="px-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                                    Account
+                                </p>
+                                {secondaryNav.map((item) => {
+                                    const Icon = item.icon;
+                                    const active = isActivePath(pathname, item.href);
+                                    return (
+                                        <Link
+                                            key={`mobile-${item.href}`}
+                                            href={item.href}
+                                            onClick={() => setMobileNavOpen(false)}
+                                            className={[
+                                                "flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition",
+                                                active
+                                                    ? "bg-emerald-50 text-emerald-700"
+                                                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+                                            ].join(" ")}
+                                        >
+                                            <Icon className="h-4 w-4" />
+                                            <span>{item.label}</span>
+                                        </Link>
+                                    );
+                                })}
+                            </div>
+                        </nav>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
