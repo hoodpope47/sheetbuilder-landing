@@ -247,7 +247,7 @@ function TemplatesContent() {
                 </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-4 mt-6 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
                 {curatedTemplates.map((t) => (
                     <article
                         key={t.id}

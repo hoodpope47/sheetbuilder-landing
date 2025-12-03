@@ -51,7 +51,7 @@ export default function DashboardOverviewPage() {
             </div>
 
             {/* Stat cards */}
-            <div className="grid gap-4 md:grid-cols-4">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
                 <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
                     <p className="text-xs font-medium text-slate-500">Sheets created</p>
                     <p className="mt-2 text-2xl font-semibold text-slate-900">
@@ -87,7 +87,7 @@ export default function DashboardOverviewPage() {
                 </div>
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-3">
+            <div className="grid gap-4 mt-6 grid-cols-1 lg:grid-cols-3">
                 {/* Trend chart */}
                 <div className="lg:col-span-2 rounded-2xl border border-slate-200 bg-white px-4 py-4">
                     <div className="flex items-center justify-between">

@@ -56,6 +56,25 @@ function canHitSupabase(userId: string | null | undefined): boolean {
     return true;
 }
 
+// --- Helper: Safe UUID generation ---
+
+function generateLocalUserId(): string {
+    // Prefer native randomUUID if available
+    if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+        return crypto.randomUUID();
+    }
+
+    // Fallback using crypto.getRandomValues if available
+    if (typeof crypto !== "undefined" && typeof (crypto as any).getRandomValues === "function") {
+        const bytes = new Uint32Array(4);
+        (crypto as any).getRandomValues(bytes);
+        return Array.from(bytes, (b) => b.toString(16).padStart(8, "0")).join("-");
+    }
+
+    // Last-resort fallback (non-cryptographic but fine for a local-only ID)
+    return `local-${Math.random().toString(36).slice(2)}-${Date.now().toString(36)}`;
+}
+
 // --- Existing Local ID Logic ---
 
 const LOCAL_USER_ID_KEY = "sheetbuilder_user_id";
@@ -64,7 +83,7 @@ export function getOrCreateLocalUserId(): string {
     if (typeof window === "undefined") return "demo-user-id";
     let id = window.localStorage.getItem(LOCAL_USER_ID_KEY);
     if (!id) {
-        id = crypto.randomUUID();
+        id = generateLocalUserId();
         window.localStorage.setItem(LOCAL_USER_ID_KEY, id);
     }
     return id;
