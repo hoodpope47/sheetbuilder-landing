@@ -1,57 +1,59 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { FormEvent, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
 export default function SignupPage() {
-    const router = useRouter();
-
     const [fullName, setFullName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
 
-    const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [info, setInfo] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [emailSent, setEmailSent] = useState(false);
 
     async function handleSignup(e: FormEvent) {
         e.preventDefault();
         setError(null);
-        setInfo(null);
+        setEmailSent(false);
 
-        if (!email || !password) {
-            setError("Please enter your email and password.");
+        if (!fullName || !email || !password) {
+            setError("Please fill in your name, email, and password.");
             return;
         }
 
         try {
             setLoading(true);
-            const { data, error: signUpError } = await supabase.auth.signUp({
+
+            const emailRedirectTo =
+                typeof window !== "undefined"
+                    ? `${window.location.origin}/login`
+                    : undefined;
+
+            const { error: signUpError } = await supabase.auth.signUp({
                 email,
                 password,
                 options: {
                     data: {
-                        full_name: fullName || null,
+                        full_name: fullName,
                     },
+                    ...(emailRedirectTo
+                        ? {
+                            emailRedirectTo,
+                        }
+                        : {}),
                 },
             });
 
             if (signUpError) {
-                setError(signUpError.message || "Unable to create account.");
+                setError(signUpError.message || "Unable to create your account.");
                 return;
             }
 
-            // If email confirmation is on, user needs to check their email.
-            if (data?.user && !data.user.confirmed_at) {
-                setInfo("Check your email to confirm your account.");
-            } else {
-                // If email confirmation is off, you can go straight to dashboard
-                router.push("/dashboard");
-            }
+            setEmailSent(true);
         } catch (err: any) {
-            setError(err.message || "Unable to create account.");
+            setError(err.message || "Unable to create your account.");
         } finally {
             setLoading(false);
         }
@@ -60,31 +62,34 @@ export default function SignupPage() {
     return (
         <main className="min-h-screen bg-slate-950 text-slate-50 flex items-center justify-center px-4">
             <div className="max-w-md w-full rounded-3xl border border-slate-800 bg-slate-950/80 px-6 py-7 shadow-[0_0_80px_rgba(15,23,42,0.9)] backdrop-blur">
-                <div className="flex items-center gap-2 mb-4">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-400 text-slate-950 text-sm font-semibold">
-                        A
-                    </div>
-                    <div className="flex flex-col">
-                        <span className="text-sm font-semibold text-slate-50">
+                <div className="mb-4">
+                    <div className="flex items-center gap-2 mb-2">
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-400 text-slate-950 text-xs font-semibold">
+                            A
+                        </div>
+                        <span className="text-xs font-semibold text-slate-50">
                             AI Sheet Builder
                         </span>
-                        <span className="text-[11px] text-slate-400">
-                            Create your free workspace
-                        </span>
                     </div>
+                    <h1 className="text-lg font-semibold">Create your free workspace</h1>
                 </div>
 
+                {/* Success banner */}
+                {emailSent && (
+                    <div className="mb-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-[11px] text-emerald-100">
+                        Check your email to confirm your account. Once verified, you&apos;ll
+                        be able to sign in to your workspace.
+                    </div>
+                )}
+
+                {/* Error banner */}
                 {error && (
                     <div className="mb-3 rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-[11px] text-red-100">
                         {error}
                     </div>
                 )}
-                {info && (
-                    <div className="mb-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-[11px] text-emerald-100">
-                        {info}
-                    </div>
-                )}
 
+                {/* Email signup form */}
                 <form onSubmit={handleSignup} className="space-y-4">
                     <div className="space-y-1.5">
                         <label
@@ -96,6 +101,7 @@ export default function SignupPage() {
                         <input
                             id="fullName"
                             type="text"
+                            autoComplete="name"
                             value={fullName}
                             onChange={(e) => setFullName(e.target.value)}
                             className="h-9 w-full rounded-lg border border-slate-700 bg-slate-900/70 px-3 text-xs text-slate-50 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400"
@@ -114,7 +120,6 @@ export default function SignupPage() {
                             id="email"
                             type="email"
                             autoComplete="email"
-                            required
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             className="h-9 w-full rounded-lg border border-slate-700 bg-slate-900/70 px-3 text-xs text-slate-50 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400"
@@ -133,7 +138,6 @@ export default function SignupPage() {
                             id="password"
                             type="password"
                             autoComplete="new-password"
-                            required
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             className="h-9 w-full rounded-lg border border-slate-700 bg-slate-900/70 px-3 text-xs text-slate-50 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400"
@@ -144,9 +148,9 @@ export default function SignupPage() {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="mt-2 inline-flex w-full items-center justify-center rounded-full bg-emerald-400 px-4 py-2 text-xs font-semibold text-slate-950 hover:bg-emerald-300 transition shadow-[0_0_25px_rgba(45,212,191,0.4)] disabled:opacity-70 disabled:cursor-wait"
+                        className="mt-1 inline-flex w-full items-center justify-center rounded-full bg-emerald-400 px-4 py-2 text-xs font-semibold text-slate-950 hover:bg-emerald-300 transition shadow-[0_0_25px_rgba(45,212,191,0.4)] disabled:opacity-70 disabled:cursor-wait"
                     >
-                        {loading ? "Creating account…" : "Create free account"}
+                        {loading ? "Creating your account…" : "Create free account"}
                     </button>
                 </form>
 
@@ -161,8 +165,21 @@ export default function SignupPage() {
                 </p>
 
                 <p className="mt-4 text-[10px] text-slate-500 text-center">
-                    You can change or delete your account any time from Settings. We use
-                    your email only for account access and product updates.
+                    By creating an account, you agree to our{" "}
+                    <Link
+                        href="/terms"
+                        className="underline underline-offset-2 text-slate-400 hover:text-slate-300"
+                    >
+                        Terms of Service
+                    </Link>{" "}
+                    and{" "}
+                    <Link
+                        href="/privacy"
+                        className="underline underline-offset-2 text-slate-400 hover:text-slate-300"
+                    >
+                        Privacy Policy
+                    </Link>
+                    . You can change or delete your account any time from Settings.
                 </p>
             </div>
         </main>
