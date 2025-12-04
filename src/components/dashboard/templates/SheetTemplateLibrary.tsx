@@ -1,293 +1,261 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 
-export type PlanId = "free" | "starter" | "pro" | "enterprise";
+export type Plan = "free" | "starter" | "pro" | "enterprise" | "admin";
 
-type SheetTemplate = {
-  id: string;
+export type SheetTemplate = {
+  slug: string;
   title: string;
   category: string;
-  difficulty: "Beginner" | "Intermediate" | "Advanced";
+  level: "Beginner" | "Intermediate" | "Advanced";
   tags: string[];
   canonicalPrompt: string;
   adminOnly?: boolean;
-  minPlan: PlanId;
+  plan: Plan;
+  previewSheetId?: string;
+  copySheetId?: string;
 };
 
-type SheetTemplateLibraryProps = {
-  currentUserEmail?: string | null;
-  currentPlan: PlanId;
-  isAdmin: boolean;
-};
+const DEFAULT_SHEET_ID =
+  process.env.NEXT_PUBLIC_DEFAULT_TEMPLATE_SHEET_ID ??
+  "1Ov_jEqt9gG5A1v3QR21kBIvi0cxsTGgHD-JFTNDd19E";
 
-const PLAN_ORDER: PlanId[] = ["free", "starter", "pro", "enterprise"];
-
-function planRank(plan: PlanId): number {
-  return PLAN_ORDER.indexOf(plan);
-}
-
-function formatPlanLabel(plan: PlanId): string {
-  if (plan === "free") return "Free";
-  if (plan === "starter") return "Starter";
-  if (plan === "pro") return "Pro";
-  return "Enterprise";
-}
-
-// Curated template set; adminOnly + minPlan control visibility
 const SHEET_TEMPLATES: SheetTemplate[] = [
   {
-    id: "sales-pipeline-crm",
-    title: "Sales Pipeline CRM",
-    category: "Sales",
-    difficulty: "Intermediate",
-    tags: ["sales", "crm", "pipeline"],
-    canonicalPrompt:
-      "Design a sales pipeline CRM sheet with stages, owners, forecasted value, and close dates. Include views for current pipeline, won deals, and lost deals.",
-    adminOnly: false,
-    minPlan: "starter",
-  },
-  {
-    id: "monthly-revenue-expenses",
+    slug: "monthly-revenue-expenses",
     title: "Monthly Revenue & Expenses",
     category: "Finance",
-    difficulty: "Beginner",
+    level: "Beginner",
     tags: ["finance", "cashflow"],
     canonicalPrompt:
       "Create a monthly revenue and expenses tracker with income categories, expense categories, and a monthly net profit summary.",
+    plan: "free",
     adminOnly: false,
-    minPlan: "free",
+    previewSheetId: DEFAULT_SHEET_ID,
+    copySheetId: DEFAULT_SHEET_ID,
   },
   {
-    id: "content-calendar",
+    slug: "content-calendar",
     title: "Content Calendar",
     category: "Marketing",
-    difficulty: "Beginner",
+    level: "Beginner",
     tags: ["marketing", "content"],
     canonicalPrompt:
-      "Build a content calendar sheet with channels, publish dates, status, owner, and post links for social, blog, and email.",
+      "Build a content calendar with channels, publish dates, owner, status, and post links for social, blog, and email.",
+    plan: "free",
     adminOnly: false,
-    minPlan: "free",
+    previewSheetId: DEFAULT_SHEET_ID,
+    copySheetId: DEFAULT_SHEET_ID,
   },
   {
-    id: "airbnb-operations-tracker",
-    title: "Airbnb Operations Tracker",
-    category: "Ops",
-    difficulty: "Intermediate",
-    tags: ["operations", "real estate"],
-    canonicalPrompt:
-      "Track Airbnb or short-term rental check-ins, cleaning tasks, maintenance, nightly rates, and monthly profit per property.",
-    adminOnly: false,
-    minPlan: "starter",
-  },
-  {
-    id: "client-projects-kanban",
-    title: "Client Projects Kanban",
-    category: "Agency",
-    difficulty: "Intermediate",
-    tags: ["agency", "projects"],
-    canonicalPrompt:
-      "Design a client projects tracker with phases, owners, budgets, due dates, and a Kanban-style board view.",
-    adminOnly: false,
-    minPlan: "starter",
-  },
-  {
-    id: "hiring-pipeline",
-    title: "Hiring Pipeline",
-    category: "HR",
-    difficulty: "Intermediate",
-    tags: ["hr", "recruiting"],
-    canonicalPrompt:
-      "Track candidates through interview stages with job role, stage, owner, feedback, and offer details.",
-    adminOnly: false,
-    minPlan: "starter",
-  },
-  {
-    id: "saas-metrics-dashboard",
-    title: "SaaS Metrics Dashboard",
-    category: "SaaS",
-    difficulty: "Advanced",
-    tags: ["saas", "metrics"],
-    canonicalPrompt:
-      "Create a SaaS metrics dashboard with MRR, churn, expansion, cohorts, and simple charts for leadership reviews.",
-    adminOnly: true,
-    minPlan: "pro",
-  },
-  {
-    id: "cashflow-90-day",
-    title: "90-Day Cashflow Forecast",
-    category: "Finance",
-    difficulty: "Intermediate",
-    tags: ["finance", "forecast"],
-    canonicalPrompt:
-      "Design a 90-day cashflow forecast with starting balance, inflows, outflows, alerts for low cash, and scenario toggles.",
-    adminOnly: true,
-    minPlan: "pro",
-  },
-  {
-    id: "ops-daily-checklist",
+    slug: "ops-daily-checklist",
     title: "Ops Daily Checklist",
     category: "Operations",
-    difficulty: "Beginner",
+    level: "Beginner",
     tags: ["operations", "checklist"],
     canonicalPrompt:
-      "Create an operations daily checklist with tasks, owners, due times, completion status, and a simple score for the day.",
+      "Create an operations daily checklist with tasks, owners, due dates, completion status, and a simple score for the day.",
+    plan: "free",
     adminOnly: false,
-    minPlan: "free",
+    previewSheetId: DEFAULT_SHEET_ID,
+    copySheetId: DEFAULT_SHEET_ID,
   },
   {
-    id: "personal-budget-savings",
+    slug: "personal-budget-savings",
     title: "Personal Budget & Savings",
     category: "Personal",
-    difficulty: "Beginner",
+    level: "Beginner",
     tags: ["personal", "budget"],
     canonicalPrompt:
-      "Build a personal budget sheet with income, expense categories, savings goals, and a simple monthly summary view.",
+      "Build a personal budget sheet with income, expense categories, savings goals, and monthly/yearly views.",
+    plan: "free",
     adminOnly: false,
-    minPlan: "free",
+    previewSheetId: DEFAULT_SHEET_ID,
+    copySheetId: DEFAULT_SHEET_ID,
+  },
+  {
+    slug: "sales-pipeline-crm",
+    title: "Sales Pipeline CRM",
+    category: "Sales",
+    level: "Intermediate",
+    tags: ["sales", "crm", "pipeline"],
+    canonicalPrompt:
+      "Design a sales pipeline CRM sheet with stages, owners, forecasted value, close dates, and win reasons.",
+    plan: "starter",
+    adminOnly: true,
+    previewSheetId: DEFAULT_SHEET_ID,
+    copySheetId: DEFAULT_SHEET_ID,
+  },
+  {
+    slug: "airbnb-ops-tracker",
+    title: "Airbnb Operations Tracker",
+    category: "Ops",
+    level: "Intermediate",
+    tags: ["operations", "real estate"],
+    canonicalPrompt:
+      "Track Airbnb check-ins, cleaning tasks, revenue, and monthly profit across multiple listings.",
+    plan: "starter",
+    adminOnly: true,
+    previewSheetId: DEFAULT_SHEET_ID,
+    copySheetId: DEFAULT_SHEET_ID,
+  },
+  {
+    slug: "client-projects-kanban",
+    title: "Client Projects Kanban",
+    category: "Agency",
+    level: "Intermediate",
+    tags: ["agency", "projects"],
+    canonicalPrompt:
+      "Manage client projects by phase, owner, budget, and due date in a Kanban-style view.",
+    plan: "starter",
+    adminOnly: true,
+    previewSheetId: DEFAULT_SHEET_ID,
+    copySheetId: DEFAULT_SHEET_ID,
+  },
+  {
+    slug: "saas-metrics-dashboard",
+    title: "SaaS Metrics Dashboard",
+    category: "SaaS",
+    level: "Advanced",
+    tags: ["saas", "metrics"],
+    canonicalPrompt:
+      "Create a SaaS metrics sheet with MRR, churn, expansion, cohorts, and runway in a clean, founder-friendly view.",
+    plan: "pro",
+    adminOnly: true,
+    previewSheetId: DEFAULT_SHEET_ID,
+    copySheetId: DEFAULT_SHEET_ID,
+  },
+  {
+    slug: "cashflow-forecast-90-day",
+    title: "90-Day Cashflow Forecast",
+    category: "Finance",
+    level: "Intermediate",
+    tags: ["finance", "forecast"],
+    canonicalPrompt:
+      "Design a 90-day cashflow forecast with starting balance, inflows, outflows, and alerts for low cash.",
+    plan: "starter",
+    adminOnly: true,
+    previewSheetId: DEFAULT_SHEET_ID,
+    copySheetId: DEFAULT_SHEET_ID,
+  },
+  {
+    slug: "hiring-pipeline",
+    title: "Hiring Pipeline",
+    category: "HR",
+    level: "Intermediate",
+    tags: ["hr", "recruiting"],
+    canonicalPrompt:
+      "Track candidates, roles, interview stages, feedback, offers, and start dates in one place.",
+    plan: "starter",
+    adminOnly: true,
+    previewSheetId: DEFAULT_SHEET_ID,
+    copySheetId: DEFAULT_SHEET_ID,
   },
 ];
 
-export function SheetTemplateLibrary({
-  currentUserEmail,
-  currentPlan,
-  isAdmin,
-}: SheetTemplateLibraryProps) {
-  const effectivePlan: PlanId = currentPlan ?? "free";
+export const SHEET_TEMPLATE_LIST: SheetTemplate[] = SHEET_TEMPLATES;
 
-  const visibleTemplates = SHEET_TEMPLATES.filter((template) => {
-    if (isAdmin) return true;
-    if (template.adminOnly) return false;
-    return planRank(effectivePlan) >= planRank(template.minPlan);
+export function SheetTemplateLibrary(props: {
+  userEmail?: string | null;
+  userPlan?: Plan;
+}) {
+  const { userEmail, userPlan = "free" } = props;
+  const isAdmin = userEmail === "admin@sheetbuilder.ai";
+
+  const planOrder: Plan[] = ["free", "starter", "pro", "enterprise", "admin"];
+
+  const visibleTemplates = SHEET_TEMPLATE_LIST.filter((tpl) => {
+    if (tpl.adminOnly && !isAdmin) return false;
+
+    const currentIndex = planOrder.indexOf(userPlan);
+    const minIndex = planOrder.indexOf(tpl.plan);
+    if (currentIndex === -1 || minIndex === -1) return false;
+
+    return currentIndex >= minIndex;
   });
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex flex-col">
-            <h1 className="text-lg font-semibold text-slate-900">
-              Sheet template library
-            </h1>
-            <p className="text-sm text-slate-500">
-              Start from a proven template or save your own sheet designs as
-              reusable recipes.
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-lg font-semibold text-slate-900">
+            Sheet template library
+          </h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Start from a proven template or save your own sheet designs as
+            reusable recipes.
+          </p>
+          {!isAdmin && (
+            <p className="mt-1 text-xs text-slate-500">
+              You&apos;ll see templates that are available on your current
+              plan. More advanced templates unlock as you upgrade.
             </p>
-          </div>
-
-          {currentUserEmail && (
-            <div className="hidden flex-col items-end text-right text-xs text-slate-500 sm:flex">
-              <span className="font-medium text-slate-700">
-                Signed in as {currentUserEmail}
-              </span>
-              <span>
-                Plan:{" "}
-                <span className="font-medium">
-                  {formatPlanLabel(effectivePlan)}
-                </span>
-                {isAdmin && (
-                  <span className="ml-2 inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
-                    Admin
-                  </span>
-                )}
-              </span>
-            </div>
+          )}
+          {isAdmin && (
+            <p className="mt-1 text-xs text-emerald-700">
+              Signed in as admin@sheetbuilder.ai · Admin templates are visible.
+            </p>
           )}
         </div>
-
-        {!isAdmin && (
-          <p className="text-xs text-slate-500">
-            You'll see templates that are available on your current plan. More
-            advanced templates unlock as you upgrade.
-          </p>
-        )}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {visibleTemplates.map((template) => {
-          const lockedByPlan =
-            !isAdmin &&
-            planRank(effectivePlan) < planRank(template.minPlan) &&
-            !template.adminOnly;
-
-          const showPlanBadge = template.minPlan !== "free";
-
-          return (
-            <article
-              key={template.id}
-              className="flex flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
-            >
-              <div className="mb-2 flex items-start justify-between gap-2">
-                <div className="flex flex-col gap-0.5">
-                  <h2 className="text-sm font-semibold text-slate-900">
-                    {template.title}
-                  </h2>
-                  <p className="text-xs text-slate-500">
-                    {template.category} · {template.difficulty}
-                  </p>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {visibleTemplates.map((tpl) => (
+          <article
+            key={tpl.slug}
+            className="flex flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  {tpl.category} · {tpl.level}
                 </div>
-                <div className="flex flex-col items-end gap-1">
-                  {template.adminOnly && (
-                    <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
-                      Admin
-                    </span>
-                  )}
-                  {showPlanBadge && (
-                    <span className="inline-flex items-center rounded-full bg-slate-50 px-2 py-0.5 text-[10px] font-medium text-slate-600">
-                      {formatPlanLabel(template.minPlan)} plan
-                    </span>
-                  )}
-                </div>
+                <h2 className="mt-1 text-sm font-semibold text-slate-900">
+                  {tpl.title}
+                </h2>
               </div>
+              {tpl.adminOnly && (
+                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                  Admin
+                </span>
+              )}
+            </div>
 
-              <p className="mb-3 line-clamp-3 text-xs leading-relaxed text-slate-600">
-                {template.canonicalPrompt}
-              </p>
+            <p className="mt-2 line-clamp-4 text-sm text-slate-600">
+              {tpl.canonicalPrompt}
+            </p>
 
-              <div className="mb-3 flex flex-wrap gap-1">
-                {template.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="inline-flex items-center rounded-full bg-slate-50 px-2 py-0.5 text-[10px] font-medium text-slate-500"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-
-              <div className="mt-auto flex items-center justify-between gap-2 pt-2">
-                <button
-                  type="button"
-                  disabled={lockedByPlan && !isAdmin}
-                  className={[
-                    "inline-flex flex-1 items-center justify-center rounded-full px-3 py-1.5 text-xs font-semibold transition",
-                    lockedByPlan && !isAdmin
-                      ? "cursor-not-allowed bg-slate-100 text-slate-400"
-                      : "bg-emerald-500 text-white hover:bg-emerald-600",
-                  ].join(" ")}
+            <div className="mt-2 flex flex-wrap gap-1">
+              {tpl.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded-full bg-slate-50 px-2 py-0.5 text-[11px] text-slate-600"
                 >
-                  {lockedByPlan && !isAdmin
-                    ? "Upgrade to use"
-                    : "Start from template"}
-                </button>
-                <button
-                  type="button"
-                  className="inline-flex items-center justify-center rounded-full px-2.5 py-1 text-[11px] font-medium text-slate-500 hover:bg-slate-50"
-                >
-                  View spec
-                </button>
-              </div>
-            </article>
-          );
-        })}
+                  {tag}
+                </span>
+              ))}
+            </div>
+
+            <div className="mt-4 flex items-center justify-between gap-3">
+              <Link
+                href={`/templates/copy/${tpl.slug}`}
+                className="inline-flex items-center justify-center rounded-full bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-600"
+              >
+                Start from template
+              </Link>
+
+              <Link
+                href={`/templates/preview/${tpl.slug}`}
+                className="text-xs font-medium text-slate-500 hover:text-slate-900 underline underline-offset-2"
+              >
+                Preview
+              </Link>
+            </div>
+          </article>
+        ))}
       </div>
-
-      {!visibleTemplates.length && (
-        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-          No templates available yet for your plan. As you upgrade, more
-          templates will unlock here.
-        </div>
-      )}
     </div>
   );
 }
