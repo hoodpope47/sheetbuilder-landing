@@ -1,5 +1,8 @@
 import type { NextConfig } from "next";
 
+import { withSentryConfig } from "@sentry/nextjs";
+
+/** @type {import('next').NextConfig} */
 const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
@@ -24,4 +27,8 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+const sentryWebpackPluginOptions = {
+  silent: true,
+};
+
+export default withSentryConfig(nextConfig, sentryWebpackPluginOptions);

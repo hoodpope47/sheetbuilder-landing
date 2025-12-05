@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
     LineChart,
     Line,
@@ -7,13 +8,14 @@ import {
     YAxis,
     Tooltip,
     ResponsiveContainer,
-    PieChart,
-    Pie,
-    Cell,
 } from "recharts";
+import { UsageByCategoryCard } from "@/components/dashboard/overview/UsageByCategoryCard";
+import { cardClasses, textStyles, palette, layout } from "@/design-system/theme";
 
+// Demo data for the line chart (sheets generated over time).
+// Later we can replace this with real per-user data from Supabase.
 const usageTrend = [
-    { month: "Jan", sheets: 4 },
+    { month: "Jan", sheets: 5 },
     { month: "Feb", sheets: 7 },
     { month: "Mar", sheets: 10 },
     { month: "Apr", sheets: 13 },
@@ -21,182 +23,211 @@ const usageTrend = [
     { month: "Jun", sheets: 20 },
 ];
 
-const sheetsByCategory = [
-    { name: "Sales", value: 8 },
-    { name: "Finance", value: 5 },
-    { name: "Ops", value: 4 },
-    { name: "Other", value: 3 },
+// Demo recent sheets list.
+// You can wire this to a real "sheets" table later.
+const recentSheets = [
+    {
+        id: "1",
+        name: "Monthly Revenue & Expenses – May",
+        category: "Finance",
+        createdAt: "2 days ago",
+    },
+    {
+        id: "2",
+        name: "Content Calendar – Q3",
+        category: "Marketing",
+        createdAt: "5 days ago",
+    },
+    {
+        id: "3",
+        name: "Ops Daily Checklist – Team A",
+        category: "Ops",
+        createdAt: "1 week ago",
+    },
 ];
 
-const PIE_COLORS = ["#10b981", "#0ea5e9", "#f97316", "#6366f1"];
-
-export default function DashboardOverviewPage() {
-    const currentPlan = "Free";
-    const renewsInDays = 12;
-    const usedThisMonth = 0;
-    const monthlyLimit: number = 5;
-
-    const usagePercent =
-        monthlyLimit === 0 ? 0 : Math.round((usedThisMonth / monthlyLimit) * 100);
-
+export default function DashboardPage() {
     return (
-        <div className="space-y-6">
-            <div>
-                <h1 className="text-xl font-semibold tracking-tight">
-                    Welcome back, Demo.
-                </h1>
-                <p className="mt-1 text-sm text-slate-600">
-                    Here&apos;s how your sheets and automations are doing this month.
-                </p>
+        <main className={`${layout.mainContainer} ${layout.pagePadding}`}>
+            {/* Header */}
+            <div className="mb-6 flex items-center justify-between gap-4">
+                <div>
+                    <h1 className={`text-2xl font-semibold ${palette.textPrimary}`}>
+                        Welcome back, Demo.
+                    </h1>
+                    <p className={`mt-1 text-sm ${palette.textMuted}`}>
+                        Here&apos;s how your sheets and automations are doing this month.
+                    </p>
+                </div>
+
+                <Link
+                    href="/dashboard/sheets/new"
+                    className="inline-flex items-center rounded-full bg-emerald-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-600"
+                >
+                    + New sheet
+                </Link>
             </div>
 
-            {/* Stat cards */}
-            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
-                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
-                    <p className="text-xs font-medium text-slate-500">Sheets created</p>
-                    <p className="mt-2 text-2xl font-semibold text-slate-900">
-                        {usedThisMonth}
+            {/* Top stats */}
+            <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <div className={cardClasses.primary}>
+                    <p className={textStyles.cardLabel}>
+                        Sheets created
                     </p>
-                    <p className="mt-1 text-[11px] text-slate-500">This month</p>
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
-                    <p className="text-xs font-medium text-slate-500">Total sheets</p>
-                    <p className="mt-2 text-2xl font-semibold text-slate-900">12</p>
-                    <p className="mt-1 text-[11px] text-slate-500">All time</p>
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
-                    <p className="text-xs font-medium text-slate-500">Current plan</p>
-                    <p className="mt-2 text-lg font-semibold text-emerald-600">
-                        {currentPlan}
+                    <p className={`mt-2 ${textStyles.cardMetric}`}>
+                        0
                     </p>
-                    <p className="mt-1 text-[11px] text-slate-500">
-                        Renews in {renewsInDays} days
+                    <p className={`mt-1 text-xs ${palette.textMuted}`}>
+                        This month
                     </p>
                 </div>
 
-                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
-                    <p className="text-xs font-medium text-slate-500">Usage</p>
-                    <p className="mt-2 text-2xl font-semibold text-slate-900">
-                        {usagePercent}%
+                <div className={cardClasses.primary}>
+                    <p className={textStyles.cardLabel}>
+                        Total sheets
                     </p>
-                    <p className="mt-1 text-[11px] text-slate-500">
-                        {usedThisMonth} / {monthlyLimit} sheets this month
+                    <p className={`mt-2 ${textStyles.cardMetric}`}>
+                        12
+                    </p>
+                    <p className={`mt-1 text-xs ${palette.textMuted}`}>
+                        All time
+                    </p>
+                </div>
+
+                <div className={cardClasses.primary}>
+                    <p className={textStyles.cardLabel}>
+                        Current plan
+                    </p>
+                    <p className="mt-2 text-2xl font-semibold text-emerald-500">
+                        Free
+                    </p>
+                    <p className={`mt-1 text-xs ${palette.textMuted}`}>
+                        Renews in 12 days
+                    </p>
+                </div>
+
+                <div className={cardClasses.primary}>
+                    <p className={textStyles.cardLabel}>
+                        Usage
+                    </p>
+                    <p className={`mt-2 ${textStyles.cardMetric}`}>
+                        0%
+                    </p>
+                    <p className={`mt-1 text-xs ${palette.textMuted}`}>
+                        0 / 5 sheets this month
                     </p>
                 </div>
             </div>
 
-            <div className="grid gap-4 mt-6 grid-cols-1 lg:grid-cols-3">
-                {/* Trend chart */}
-                <div className="lg:col-span-2 rounded-2xl border border-slate-200 bg-white px-4 py-4">
-                    <div className="flex items-center justify-between">
+            {/* Charts row */}
+            <div className="grid gap-6 lg:grid-cols-[2fr,1.25fr]">
+                {/* Line chart: usage trend */}
+                <div className={cardClasses.primary}>
+                    <div className="mb-4 flex items-center justify-between">
                         <div>
-                            <p className="text-xs font-semibold text-slate-500">
+                            <p className={textStyles.cardLabel}>
                                 Usage trend
                             </p>
-                            <p className="text-sm font-semibold text-slate-900">
+                            <p className={textStyles.cardTitle}>
                                 Sheets generated over time
                             </p>
                         </div>
-                        <span className="rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-700">
+                        <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-medium uppercase tracking-wide text-emerald-600">
                             Demo data
                         </span>
                     </div>
-                    <div className="mt-4 h-48">
+
+                    <div className="h-56">
                         <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={usageTrend}>
+                            <LineChart
+                                data={usageTrend}
+                                margin={{ top: 10, right: 16, left: -20, bottom: 0 }}
+                            >
                                 <XAxis
                                     dataKey="month"
-                                    stroke="#9ca3af"
-                                    fontSize={11}
                                     tickLine={false}
+                                    axisLine={false}
+                                    tick={{ fontSize: 12, fill: "#9ca3af" }}
                                 />
                                 <YAxis
-                                    stroke="#9ca3af"
-                                    fontSize={11}
+                                    allowDecimals={false}
                                     tickLine={false}
-                                    width={32}
+                                    axisLine={false}
+                                    tick={{ fontSize: 12, fill: "#9ca3af" }}
                                 />
                                 <Tooltip
                                     contentStyle={{
-                                        borderRadius: 10,
-                                        borderColor: "#e5e7eb",
-                                        fontSize: 11,
+                                        backgroundColor: "#ffffff",
+                                        borderRadius: 8,
+                                        border: "1px solid #e2e8f0",
+                                        padding: "6px 10px",
+                                        fontSize: 12,
+                                        color: "#0f172a",
+                                        boxShadow: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
                                     }}
+                                    labelStyle={{ color: "#64748b" }}
                                 />
                                 <Line
                                     type="monotone"
                                     dataKey="sheets"
-                                    stroke="#10b981"
+                                    stroke="#22c55e"
                                     strokeWidth={2}
-                                    dot={{ r: 3 }}
+                                    dot={false}
+                                    activeDot={{ r: 4 }}
                                 />
                             </LineChart>
                         </ResponsiveContainer>
                     </div>
                 </div>
 
-                {/* Category pie */}
-                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
-                    <p className="text-xs font-semibold text-slate-500">
-                        Sheets by category
-                    </p>
-                    <p className="text-sm font-semibold text-slate-900">
-                        Where you use SheetBuilder the most
-                    </p>
-                    <div className="mt-4 flex items-center gap-4">
-                        <div className="h-40 w-40">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Pie
-                                        data={sheetsByCategory}
-                                        dataKey="value"
-                                        innerRadius={40}
-                                        outerRadius={60}
-                                        paddingAngle={3}
-                                    >
-                                        {sheetsByCategory.map((entry, index) => (
-                                            <Cell
-                                                key={entry.name}
-                                                fill={PIE_COLORS[index % PIE_COLORS.length]}
-                                            />
-                                        ))}
-                                    </Pie>
-                                </PieChart>
-                            </ResponsiveContainer>
-                        </div>
-                        <div className="space-y-2 text-xs">
-                            {sheetsByCategory.map((item, index) => (
-                                <div key={item.name} className="flex items-center gap-2">
-                                    <span
-                                        className="h-2.5 w-2.5 rounded-full"
-                                        style={{ backgroundColor: PIE_COLORS[index] }}
-                                    />
-                                    <span className="text-slate-700">{item.name}</span>
-                                    <span className="ml-auto font-medium text-slate-900">
-                                        {item.value}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
+                {/* Donut chart card (hover-to-pop is handled inside UsageByCategoryCard) */}
+                <UsageByCategoryCard />
             </div>
 
-            {/* Recent sheets list */}
-            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
-                <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold text-slate-500">Recent sheets</p>
-                    <button className="rounded-full border border-slate-200 px-3 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50">
-                        + New sheet
-                    </button>
+            {/* Recent sheets */}
+            <div className={`mt-6 ${cardClasses.primary}`}>
+                <div className="mb-3 flex items-center justify-between">
+                    <div>
+                        <p className={textStyles.cardTitle}>
+                            Recent sheets
+                        </p>
+                        <p className={`text-xs ${palette.textMuted}`}>
+                            No sheets created yet. Generate your first AI-built sheet from the
+                            &quot;My Sheets&quot; tab.
+                        </p>
+                    </div>
+                    <Link
+                        href="/dashboard/sheets"
+                        className="text-xs font-medium text-emerald-600 hover:underline"
+                    >
+                        View all
+                    </Link>
                 </div>
-                <p className="mt-4 text-xs text-slate-500">
-                    No sheets created yet. Generate your first AI-built sheet from the
-                    “My Sheets” tab.
-                </p>
+
+                <div className="divide-y divide-slate-100 text-sm">
+                    {recentSheets.map((sheet) => (
+                        <div
+                            key={sheet.id}
+                            className="flex items-center justify-between py-2.5"
+                        >
+                            <div>
+                                <p className={`font-medium ${palette.textPrimary}`}>
+                                    {sheet.name}
+                                </p>
+                                <p className={`text-xs ${palette.textMuted}`}>
+                                    {sheet.category} · {sheet.createdAt}
+                                </p>
+                            </div>
+                            <Link
+                                href="/dashboard/sheets"
+                                className={`text-xs font-medium ${palette.textMuted} hover:${palette.textPrimary}`}
+                            >
+                                Open
+                            </Link>
+                        </div>
+                    ))}
+                </div>
             </div>
-        </div>
+        </main>
     );
 }

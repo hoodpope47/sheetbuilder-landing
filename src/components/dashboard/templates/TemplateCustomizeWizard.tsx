@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState } from "react";
 import { customizeTemplateAction } from "@/app/actions/sheets/customizeTemplate";
+import { useToast } from "@/components/ui/ToastProvider";
+import { captureError } from "@/lib/monitoring";
 
 type TemplateCustomizeWizardProps = {
     templateSlug: string;
@@ -11,6 +13,7 @@ type TemplateCustomizeWizardProps = {
 
 export function TemplateCustomizeWizard(props: TemplateCustomizeWizardProps) {
     const { templateSlug, templateTitle, templateCategory } = props;
+    const { showToast } = useToast();
 
     const [tracking, setTracking] = useState("");
     const [timeHorizon, setTimeHorizon] = useState("");
@@ -18,7 +21,7 @@ export function TemplateCustomizeWizard(props: TemplateCustomizeWizardProps) {
     const [palette, setPalette] = useState("Light / neutral");
     const [extraNotes, setExtraNotes] = useState("");
 
-    const [isPending, startTransition] = useTransition();
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [statusMessage, setStatusMessage] = useState<string | null>(null);
     const [statusError, setStatusError] = useState<string | null>(null);
 
@@ -60,12 +63,18 @@ export function TemplateCustomizeWizard(props: TemplateCustomizeWizardProps) {
         return lines.join(" ");
     }, [templateTitle, templateCategory, tracking, timeHorizon, views, palette, extraNotes]);
 
-    function handleSubmit(e: React.FormEvent) {
+    async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
+
+        // Prevent double submit
+        if (isSubmitting) return;
+
+        setIsSubmitting(true);
         setStatusMessage(null);
         setStatusError(null);
 
-        startTransition(async () => {
+        try {
+            // Keep existing server action call
             const result = await customizeTemplateAction({
                 templateSlug,
                 templateTitle,
@@ -79,11 +88,30 @@ export function TemplateCustomizeWizard(props: TemplateCustomizeWizardProps) {
             });
 
             if (result.ok) {
+                showToast({
+                    variant: "success",
+                    title: "Preferences saved",
+                    message: "We’ll use this setup when generating your sheet.",
+                });
                 setStatusMessage("Customization saved. Sheet generation is coming soon 🚀");
             } else {
-                setStatusError(result.error || "Something went wrong.");
+                throw new Error(result.error || "Something went wrong.");
             }
-        });
+        } catch (err) {
+            captureError(err, {
+                section: "template_customize",
+                action: "submit_wizard",
+            });
+
+            showToast({
+                variant: "error",
+                title: "Something went wrong",
+                message: "Please try again in a moment.",
+            });
+            setStatusError("Something went wrong. Please try again.");
+        } finally {
+            setIsSubmitting(false);
+        }
     }
 
     return (
@@ -173,10 +201,10 @@ export function TemplateCustomizeWizard(props: TemplateCustomizeWizardProps) {
                 <div className="mt-6 flex items-center gap-3">
                     <button
                         type="submit"
-                        disabled={isPending}
+                        disabled={isSubmitting}
                         className="inline-flex items-center justify-center rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-70"
                     >
-                        {isPending ? "Saving..." : "Generate sheet (coming soon)"}
+                        {isSubmitting ? "Saving..." : "Generate sheet (coming soon)"}
                     </button>
 
                     <span className="text-xs text-slate-500">
