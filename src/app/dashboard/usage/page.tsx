@@ -14,6 +14,7 @@ import {
     getOrCreateUsageForMonth,
     getRecentUsageEvents,
 } from "@/lib/userClient";
+import { format, formatDistanceToNow } from "date-fns";
 
 type UsageRow = {
     user_id: string;
@@ -293,7 +294,10 @@ export default function UsagePage() {
                                         {event.description || event.type}
                                     </p>
                                     <p className="mt-0.5 text-[10px] text-slate-400">
-                                        {new Date(event.created_at).toLocaleString()}
+                                        {format(new Date(event.created_at), "MMM d, yyyy")} ·{" "}
+                                        {formatDistanceToNow(new Date(event.created_at), {
+                                            addSuffix: true,
+                                        })}
                                     </p>
                                 </div>
                             </li>

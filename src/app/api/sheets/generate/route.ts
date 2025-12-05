@@ -1,25 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateAndStoreSheetSpec } from "@/lib/sheetBrain";
 
+import { sheetGenerateSchema } from "@/lib/validation/sheets";
+
 export async function POST(req: NextRequest) {
     try {
-        const body = await req.json().catch(() => ({}));
+        const json = await req.json();
+        const parsed = sheetGenerateSchema.safeParse(json);
 
-        const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
-        const category =
-            typeof body.category === "string" && body.category.trim().length > 0
-                ? body.category.trim()
-                : null;
-
-        if (!prompt) {
-            return NextResponse.json(
-                { error: "Missing prompt" },
-                { status: 400 }
-            );
+        if (!parsed.success) {
+            const message =
+                parsed.error.issues[0]?.message ||
+                "Invalid request body for sheet generation";
+            return NextResponse.json({ error: message }, { status: 400 });
         }
 
-        // TODO: once auth is wired, extract userId from session
-        const userId: string | null = null;
+        const { prompt, userId, plan } = parsed.data;
+        const rawPrompt = prompt.trim();
+
+        const category = null; // We'll skip category for now or extract it if needed later
+
+        // TODO: once auth is wired, extract userId from session if not provided in body
+        // const userIdFromSession = ...;
 
         const result = await generateAndStoreSheetSpec({
             prompt,

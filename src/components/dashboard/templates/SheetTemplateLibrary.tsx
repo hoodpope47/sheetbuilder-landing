@@ -1,161 +1,84 @@
-"use client";
-
 import React from "react";
 import Link from "next/link";
 
-export type Plan = "free" | "starter" | "pro" | "enterprise" | "admin";
+// --- Template types and data used by dashboard + preview ---
 
 export type SheetTemplate = {
   slug: string;
-  title: string;
+  name: string;
   category: string;
   level: "Beginner" | "Intermediate" | "Advanced";
+  description: string;
   tags: string[];
+
+  // New fields for preview + copy behavior
+  previewGoogleSheetId: string; // used in the iframe
+  copySheetUrl: string;         // direct /copy URL for Google Sheets
   canonicalPrompt: string;
-  adminOnly?: boolean;
-  plan: Plan;
-  previewSheetId?: string;
-  copySheetId?: string;
 };
 
-const DEFAULT_SHEET_ID =
-  process.env.NEXT_PUBLIC_DEFAULT_TEMPLATE_SHEET_ID ??
-  "1Ov_jEqt9gG5A1v3QR21kBIvi0cxsTGgHD-JFTNDd19E";
-
-const SHEET_TEMPLATES: SheetTemplate[] = [
+// Central source of truth for all templates shown in the UI.
+// Ordered to match the current dashboard cards.
+export const SHEET_TEMPLATE_LIST: SheetTemplate[] = [
   {
     slug: "monthly-revenue-expenses",
-    title: "Monthly Revenue & Expenses",
+    name: "Monthly Revenue & Expenses",
     category: "Finance",
     level: "Beginner",
-    tags: ["finance", "cashflow"],
-    canonicalPrompt:
+    description:
       "Create a monthly revenue and expenses tracker with income categories, expense categories, and a monthly net profit summary.",
-    plan: "free",
-    adminOnly: false,
-    previewSheetId: DEFAULT_SHEET_ID,
-    copySheetId: DEFAULT_SHEET_ID,
+    tags: ["finance", "cashflow"],
+    previewGoogleSheetId: "19MtunOekO0WALbelH_PYEKEmAAPi3nt-Jusc5dt0p2s",
+    copySheetUrl:
+      "https://docs.google.com/spreadsheets/d/19MtunOekO0WALbelH_PYEKEmAAPi3nt-Jusc5dt0p2s/copy",
+    canonicalPrompt:
+      'Design a professional Google Sheet based on "Monthly Revenue & Expenses" for my business.',
   },
   {
     slug: "content-calendar",
-    title: "Content Calendar",
+    name: "Content Calendar",
     category: "Marketing",
     level: "Beginner",
+    description:
+      "Build a content calendar sheet with channels, publish dates, status, owner, and post links for social, blog, and email.",
     tags: ["marketing", "content"],
+    previewGoogleSheetId: "1QbC0B3AkwFo4O9ztQEdJ5WmI72pEQ37SVHNrut32B5c",
+    copySheetUrl:
+      "https://docs.google.com/spreadsheets/d/1QbC0B3AkwFo4O9ztQEdJ5WmI72pEQ37SVHNrut32B5c/copy",
     canonicalPrompt:
-      "Build a content calendar with channels, publish dates, owner, status, and post links for social, blog, and email.",
-    plan: "free",
-    adminOnly: false,
-    previewSheetId: DEFAULT_SHEET_ID,
-    copySheetId: DEFAULT_SHEET_ID,
+      'Design a professional Google Sheet based on "Content Calendar" for my business.',
   },
   {
     slug: "ops-daily-checklist",
-    title: "Ops Daily Checklist",
+    name: "Ops Daily Checklist",
     category: "Operations",
     level: "Beginner",
+    description:
+      "Create an operations daily checklist with tasks, owners, due times, completion status, and a simple score for the day.",
     tags: ["operations", "checklist"],
+    previewGoogleSheetId: "11tlKQVvkCxMKlwdKslXmdyjurCySJu-1TVKOxyxk3cM",
+    copySheetUrl:
+      "https://docs.google.com/spreadsheets/d/11tlKQVvkCxMKlwdKslXmdyjurCySJu-1TVKOxyxk3cM/copy",
     canonicalPrompt:
-      "Create an operations daily checklist with tasks, owners, due dates, completion status, and a simple score for the day.",
-    plan: "free",
-    adminOnly: false,
-    previewSheetId: DEFAULT_SHEET_ID,
-    copySheetId: DEFAULT_SHEET_ID,
+      'Design a professional Google Sheet based on "Ops Daily Checklist" for my business.',
   },
   {
     slug: "personal-budget-savings",
-    title: "Personal Budget & Savings",
+    name: "Personal Budget & Savings",
     category: "Personal",
     level: "Beginner",
-    tags: ["personal", "budget"],
-    canonicalPrompt:
+    description:
       "Build a personal budget sheet with income, expense categories, savings goals, and monthly/yearly views.",
-    plan: "free",
-    adminOnly: false,
-    previewSheetId: DEFAULT_SHEET_ID,
-    copySheetId: DEFAULT_SHEET_ID,
-  },
-  {
-    slug: "sales-pipeline-crm",
-    title: "Sales Pipeline CRM",
-    category: "Sales",
-    level: "Intermediate",
-    tags: ["sales", "crm", "pipeline"],
+    tags: ["personal", "budget"],
+    previewGoogleSheetId: "1t7igFex-gmqnuiltPHITsAqXHfMwtKFgOBTElWbAyWc",
+    copySheetUrl:
+      "https://docs.google.com/spreadsheets/d/1t7igFex-gmqnuiltPHITsAqXHfMwtKFgOBTElWbAyWc/copy",
     canonicalPrompt:
-      "Design a sales pipeline CRM sheet with stages, owners, forecasted value, close dates, and win reasons.",
-    plan: "starter",
-    adminOnly: true,
-    previewSheetId: DEFAULT_SHEET_ID,
-    copySheetId: DEFAULT_SHEET_ID,
-  },
-  {
-    slug: "airbnb-ops-tracker",
-    title: "Airbnb Operations Tracker",
-    category: "Ops",
-    level: "Intermediate",
-    tags: ["operations", "real estate"],
-    canonicalPrompt:
-      "Track Airbnb check-ins, cleaning tasks, revenue, and monthly profit across multiple listings.",
-    plan: "starter",
-    adminOnly: true,
-    previewSheetId: DEFAULT_SHEET_ID,
-    copySheetId: DEFAULT_SHEET_ID,
-  },
-  {
-    slug: "client-projects-kanban",
-    title: "Client Projects Kanban",
-    category: "Agency",
-    level: "Intermediate",
-    tags: ["agency", "projects"],
-    canonicalPrompt:
-      "Manage client projects by phase, owner, budget, and due date in a Kanban-style view.",
-    plan: "starter",
-    adminOnly: true,
-    previewSheetId: DEFAULT_SHEET_ID,
-    copySheetId: DEFAULT_SHEET_ID,
-  },
-  {
-    slug: "saas-metrics-dashboard",
-    title: "SaaS Metrics Dashboard",
-    category: "SaaS",
-    level: "Advanced",
-    tags: ["saas", "metrics"],
-    canonicalPrompt:
-      "Create a SaaS metrics sheet with MRR, churn, expansion, cohorts, and runway in a clean, founder-friendly view.",
-    plan: "pro",
-    adminOnly: true,
-    previewSheetId: DEFAULT_SHEET_ID,
-    copySheetId: DEFAULT_SHEET_ID,
-  },
-  {
-    slug: "cashflow-forecast-90-day",
-    title: "90-Day Cashflow Forecast",
-    category: "Finance",
-    level: "Intermediate",
-    tags: ["finance", "forecast"],
-    canonicalPrompt:
-      "Design a 90-day cashflow forecast with starting balance, inflows, outflows, and alerts for low cash.",
-    plan: "starter",
-    adminOnly: true,
-    previewSheetId: DEFAULT_SHEET_ID,
-    copySheetId: DEFAULT_SHEET_ID,
-  },
-  {
-    slug: "hiring-pipeline",
-    title: "Hiring Pipeline",
-    category: "HR",
-    level: "Intermediate",
-    tags: ["hr", "recruiting"],
-    canonicalPrompt:
-      "Track candidates, roles, interview stages, feedback, offers, and start dates in one place.",
-    plan: "starter",
-    adminOnly: true,
-    previewSheetId: DEFAULT_SHEET_ID,
-    copySheetId: DEFAULT_SHEET_ID,
+      'Design a professional Google Sheet based on "Personal Budget & Savings" for my finances.',
   },
 ];
 
-export const SHEET_TEMPLATE_LIST: SheetTemplate[] = SHEET_TEMPLATES;
+export type Plan = "free" | "starter" | "pro" | "enterprise" | "admin";
 
 export function SheetTemplateLibrary(props: {
   userEmail?: string | null;
@@ -164,17 +87,8 @@ export function SheetTemplateLibrary(props: {
   const { userEmail, userPlan = "free" } = props;
   const isAdmin = userEmail === "admin@sheetbuilder.ai";
 
-  const planOrder: Plan[] = ["free", "starter", "pro", "enterprise", "admin"];
-
-  const visibleTemplates = SHEET_TEMPLATE_LIST.filter((tpl) => {
-    if (tpl.adminOnly && !isAdmin) return false;
-
-    const currentIndex = planOrder.indexOf(userPlan);
-    const minIndex = planOrder.indexOf(tpl.plan);
-    if (currentIndex === -1 || minIndex === -1) return false;
-
-    return currentIndex >= minIndex;
-  });
+  // Filtering is temporarily disabled as the new data structure doesn't support plan/admin gating yet.
+  const visibleTemplates = SHEET_TEMPLATE_LIST;
 
   return (
     <div className="flex flex-col gap-6">
@@ -213,18 +127,13 @@ export function SheetTemplateLibrary(props: {
                   {tpl.category} · {tpl.level}
                 </div>
                 <h2 className="mt-1 text-sm font-semibold text-slate-900">
-                  {tpl.title}
+                  {tpl.name}
                 </h2>
               </div>
-              {tpl.adminOnly && (
-                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
-                  Admin
-                </span>
-              )}
             </div>
 
             <p className="mt-2 line-clamp-4 text-sm text-slate-600">
-              {tpl.canonicalPrompt}
+              {tpl.description}
             </p>
 
             <div className="mt-2 flex flex-wrap gap-1">
@@ -238,20 +147,30 @@ export function SheetTemplateLibrary(props: {
               ))}
             </div>
 
-            <div className="mt-4 flex items-center justify-between gap-3">
-              <Link
-                href={`/templates/copy/${tpl.slug}`}
-                className="inline-flex items-center justify-center rounded-full bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-600"
-              >
-                Start from template
-              </Link>
-
-              <Link
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <a
                 href={`/templates/preview/${tpl.slug}`}
-                className="text-xs font-medium text-slate-500 hover:text-slate-900 underline underline-offset-2"
+                className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-50"
               >
                 Preview
-              </Link>
+              </a>
+
+              <a
+                href={tpl.copySheetUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center justify-center rounded-full bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600"
+              >
+                Copy to Google Sheets
+              </a>
+
+              {/* Customize with AI always available for now; you can gate by plan/admin later */}
+              <button
+                disabled
+                className="inline-flex items-center justify-center rounded-full border border-emerald-500 bg-white px-3 py-1.5 text-xs font-medium text-emerald-600 opacity-50 cursor-not-allowed"
+              >
+                Customize (soon)
+              </button>
             </div>
           </article>
         ))}

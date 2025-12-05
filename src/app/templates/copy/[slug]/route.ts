@@ -1,33 +1,39 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import {
     SHEET_TEMPLATE_LIST,
     type SheetTemplate,
-} from "@/components/dashboard/templates/SheetTemplateLibrary";
+} from "@/lib/templates/sheetTemplates";
+import { logSheetEvent } from "@/lib/analytics/sheetEvents";
 
 type RouteParams = {
-    params: { slug: string };
+    params: {
+        slug: string;
+    };
 };
 
-export async function GET(_req: Request, { params }: RouteParams) {
-    const list: SheetTemplate[] = Array.isArray(SHEET_TEMPLATE_LIST)
-        ? SHEET_TEMPLATE_LIST
-        : (Object.values(SHEET_TEMPLATE_LIST as any) as SheetTemplate[]);
+export async function GET(req: NextRequest, { params }: RouteParams) {
+    const { slug } = params;
 
-    const template = list.find((t) => t.slug === params.slug);
+    const list: SheetTemplate[] = SHEET_TEMPLATE_LIST;
+    const template = list.find((t) => t.slug === slug);
 
-    const sheetId =
-        template?.copySheetId ||
-        process.env.NEXT_PUBLIC_DEFAULT_TEMPLATE_SHEET_ID ||
-        "1Ov_jEqt9gG5A1v3QR21kBIvi0cxsTGgHD-JFTNDd19E";
-
-    if (!sheetId) {
-        return NextResponse.json(
-            { error: "Missing copy sheet id for this template." },
-            { status: 500 }
+    if (!template || !template.copySheetUrl) {
+        console.error(
+            "[CopyRoute] Missing template or copySheetUrl for slug:",
+            slug
         );
+        return NextResponse.redirect(new URL("/dashboard/templates", req.url));
     }
 
-    const url = `https://docs.google.com/spreadsheets/d/${sheetId}/copy`;
+    await logSheetEvent({
+        templateSlug: template.slug,
+        eventType: "sheet_created",
+        metadata: {
+            source: "copy_route",
+            copy_sheet_url: template.copySheetUrl,
+        },
+    });
 
-    return NextResponse.redirect(url);
+    // Redirect directly to the Google "Make a copy" URL
+    return NextResponse.redirect(template.copySheetUrl, 307);
 }
