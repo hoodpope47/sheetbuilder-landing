@@ -1,81 +1,99 @@
-import type { Metadata } from "next";
-import { SHEET_TEMPLATE_LIST, type SheetTemplate } from "@/components/dashboard/templates/SheetTemplateLibrary";
+import { notFound } from "next/navigation";
+import { SHEET_TEMPLATE_LIST } from "@/components/dashboard/templates/SheetTemplateLibrary";
 import { TemplateCustomizeWizard } from "@/components/dashboard/templates/TemplateCustomizeWizard";
+import { supabaseServer } from "@/lib/supabaseServer";
+import { getDashboardUser } from "@/lib/userClient";
 
 type PageProps = {
-    params: { slug: string };
+    params: Promise<{
+        slug: string;
+    }>;
 };
-
-export const metadata: Metadata = {
-    title: "Customize template | AI Sheet Builder",
-};
-
-function getTemplateBySlug(slug: string): SheetTemplate | null {
-    try {
-        const list: SheetTemplate[] = Array.isArray(SHEET_TEMPLATE_LIST)
-            ? SHEET_TEMPLATE_LIST
-            : Object.values(SHEET_TEMPLATE_LIST as unknown as Record<string, SheetTemplate>);
-
-        return list.find((t) => t.slug === slug) ?? null;
-    } catch (err) {
-        console.error("[CustomizeTemplatePage] Failed to read SHEET_TEMPLATE_LIST", err);
-        return null;
-    }
-}
 
 export default async function CustomizeTemplatePage({ params }: PageProps) {
-    const { slug } = await params;
+    const resolvedParams = await params;
 
-    // Debug log so we can see in the dev terminal that this route is hit
-    console.log("[CustomizeTemplatePage] rendering for slug:", slug);
+    // Resolve templates list safely (handles both array and object map shapes).
+    const list = Array.isArray(SHEET_TEMPLATE_LIST)
+        ? SHEET_TEMPLATE_LIST
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        : Object.values(SHEET_TEMPLATE_LIST as any);
 
-    const template = getTemplateBySlug(slug);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const template = (list.find(
+        (t: any) => t && t.slug && t.slug === resolvedParams.slug
+    ) ?? null) as any;
 
-    const templateTitle: string =
-        template?.name ??
-        slug
-            .split("-")
-            .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
-            .join(" ");
+    if (!template) {
+        notFound();
+    }
 
-    const templateCategory: string | null =
-        template?.category ?? null;
+    // Server action: save spec into sheet_specs
+    async function saveSpec(formData: FormData) {
+        "use server";
+
+        const templateSlug = (formData.get("template_slug") || "") as string;
+        const title = (formData.get("title") || "") as string;
+        const description = (formData.get("description") || "") as string;
+        const rawSpec = (formData.get("spec_json") || "") as string;
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let specJson: any = null;
+        try {
+            specJson = rawSpec ? JSON.parse(rawSpec) : null;
+        } catch (err) {
+            console.error("[CustomizeTemplate] Failed to parse spec_json", {
+                err,
+                rawSpec,
+            });
+            // Even if parsing fails, do not crash the request.
+            return;
+        }
+
+        // Optional: get current user for user_id; falls back to null if not found.
+        let userId: string | null = null;
+        try {
+            const user = await getDashboardUser();
+            if (user && (user as any)?.id) {
+                userId = (user as any)?.id;
+            }
+        } catch (err) {
+            console.error("[CustomizeTemplate] Failed to load dashboard user", {
+                err,
+            });
+        }
+
+        try {
+            const { error } = await supabaseServer.from("sheet_specs").insert({
+                user_id: userId,
+                template_slug: templateSlug || resolvedParams.slug,
+                title: title || template.name || "Custom sheet",
+                description: description || null,
+                spec_json: specJson,
+                model_version: null,
+            });
+
+            if (error) {
+                console.error("[CustomizeTemplate] Failed to insert sheet_specs row", {
+                    error,
+                });
+            }
+        } catch (err) {
+            console.error("[CustomizeTemplate] Unexpected error inserting sheet_specs", {
+                err,
+            });
+        }
+
+        // No redirect yet; the client UI already shows this as "Generate (save only)".
+        // Later we can redirect to a "spec created" page or the user's Sheets list.
+    }
 
     return (
-        <div className="mx-auto flex max-w-5xl flex-col gap-8 px-4 py-10">
-            <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-400">
-                    Customize template
-                </p>
-                <h1 className="text-2xl font-semibold text-slate-50">
-                    {templateTitle}
-                </h1>
-
-                {templateCategory && (
-                    <p className="text-xs font-medium text-slate-400">
-                        Category: {templateCategory}
-                    </p>
-                )}
-
-                {!template && (
-                    <p className="text-xs text-amber-400">
-                        We couldn&apos;t find this template in the library, but you can still
-                        describe what you want and we&apos;ll save it as a custom spec.
-                    </p>
-                )}
-
-                <p className="text-sm text-slate-400">
-                    Answer a few quick questions so the AI knows how to tailor this sheet
-                    to your workflow. We&apos;ll save your answers as a design spec so
-                    generation can happen directly in your own Google Drive later.
-                </p>
-            </div>
-
-            <TemplateCustomizeWizard
-                templateSlug={slug}
-                templateTitle={templateTitle}
-                templateCategory={templateCategory}
-            />
-        </div>
+        <TemplateCustomizeWizard
+            templateSlug={template.slug}
+            templateName={template.name}
+            templateCategory={template.category || "General"}
+            saveAction={saveSpec}
+        />
     );
 }
