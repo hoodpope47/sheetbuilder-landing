@@ -1,6 +1,13 @@
+//-----------------------------------------------------
 // Centralized logging for sheet-related events used by the AI "brain".
-// For now, this is a SAFE NO-OP that only console.logs so we don't
-// break the app while the database schema is still evolving.
+// This uses the server-side Supabase client and writes to
+// public.sheet_events_log.
+//
+// NOTE:
+// - user_id is optional and can be null for now.
+// - This helper must only be used on the server (route handlers / RSC / server actions).
+
+import { supabaseServer } from "@/lib/supabaseServer";
 
 export type SheetEventType =
     | "spec_created"
@@ -19,9 +26,7 @@ export type LogSheetEventInput = {
     metadata?: Record<string, any> | null;
 };
 
-export async function logSheetEvent(
-    input: LogSheetEventInput,
-): Promise<void> {
+export async function logSheetEvent(input: LogSheetEventInput): Promise<void> {
     const payload = {
         user_id: input.userId ?? null,
         sheet_spec_id: input.sheetSpecId ?? null,
@@ -30,12 +35,17 @@ export async function logSheetEvent(
         metadata: input.metadata ?? null,
     };
 
-    // TEMPORARY: Just log in dev, no Supabase writes.
-    // This avoids "[sheetEvents] Failed to log event {}" until
-    // the sheet_events_log table is finalized.
-    if (process.env.NODE_ENV !== "production") {
-        console.log("[sheetEvents] (dev) logSheetEvent payload:", payload);
-    }
+    try {
+        const { error } = await supabaseServer.from("sheet_events_log").insert(payload);
 
-    return;
+        if (error) {
+            // Do not crash the app because of logging failures.
+            console.error("[sheetEvents] Failed to log event", { error, payload });
+        }
+    } catch (err) {
+        console.error("[sheetEvents] Unexpected error while logging event", {
+            err,
+            payload,
+        });
+    }
 }

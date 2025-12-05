@@ -8,6 +8,7 @@ import {
     updateUserPassword,
 } from "@/lib/userClient";
 import { LogoutButton } from "@/components/dashboard/LogoutButton";
+import { GoogleSheetsConnectCard } from "@/components/dashboard/settings/GoogleSheetsConnectCard";
 
 type TabId = "account" | "security" | "preferences" | "billing";
 
@@ -68,6 +69,9 @@ export default function SettingsPage() {
             {activeTab === "security" && <SecuritySection />}
             {activeTab === "preferences" && <PreferencesSection />}
             {activeTab === "billing" && <BillingSection />}
+
+            {/* Google Sheets Connect - always visible */}
+            <GoogleSheetsConnectCard />
 
             {/* Sign out section - always visible */}
             <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">

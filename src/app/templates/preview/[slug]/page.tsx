@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import {
     SHEET_TEMPLATE_LIST,
     type SheetTemplate,
@@ -81,13 +82,15 @@ export default async function TemplatePreviewPage(props: PageProps) {
                     </a>
 
                     {/* Placeholder – we’ll later replace with the AI customization drawer */}
-                    <button
-                        type="button"
-                        disabled
-                        className="inline-flex w-full items-center justify-center rounded-full border border-slate-700 px-4 py-2.5 text-sm font-medium text-slate-300 opacity-60"
-                    >
-                        Customize this template (coming soon)
-                    </button>
+                    {/* Customize link */}
+                    <Link href={`/templates/customize/${template.slug}`} className="block">
+                        <button
+                            type="button"
+                            className="inline-flex w-full items-center justify-center rounded-full border border-slate-700/70 bg-slate-900/60 px-4 py-2.5 text-sm font-medium text-slate-300 hover:bg-slate-800"
+                        >
+                            Customize this template (coming soon)
+                        </button>
+                    </Link>
                 </div>
             </aside>
         </div>
