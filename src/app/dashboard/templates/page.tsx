@@ -12,20 +12,27 @@ export const metadata: Metadata = {
 export default async function TemplatesPage() {
     const user = await getDashboardUser();
 
-    const email = user?.email ?? null;
-    const rawPlan = (user?.plan ?? user?.metadata?.plan ?? "free") as string;
+    const email = (user as any)?.email ?? "";
+    const isAdmin =
+        typeof email === "string" &&
+        email.toLowerCase() === "admin@sheetbuilder.ai";
 
-    const validPlans: PlanId[] = ["free", "starter", "pro", "enterprise"];
-    const normalizedPlan = validPlans.includes(rawPlan as PlanId)
+    // Try to read plan from a few possible locations
+    const rawPlan =
+        (user as any)?.plan ??
+        (user as any)?.metadata?.plan ??
+        (user as any)?.stripePlan ??
+        "free";
+
+    const allowedPlans: PlanId[] = ["free", "starter", "pro", "enterprise"];
+
+    const plan: PlanId = allowedPlans.includes(rawPlan)
         ? (rawPlan as PlanId)
-        : ("free" as PlanId);
-
-    const isAdmin = email === "admin@sheetbuilder.ai";
+        : "free";
 
     return (
         <SheetTemplateLibrary
-            currentUserEmail={email}
-            currentPlan={normalizedPlan}
+            plan={plan}
             isAdmin={isAdmin}
         />
     );

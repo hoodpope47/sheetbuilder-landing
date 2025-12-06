@@ -1,6 +1,8 @@
 import React from "react";
 import Link from "next/link";
 
+export type PlanId = "free" | "starter" | "pro" | "enterprise";
+
 // --- Template types and data used by dashboard + preview ---
 
 export type SheetTemplate = {
@@ -15,6 +17,10 @@ export type SheetTemplate = {
   previewGoogleSheetId: string; // used in the iframe
   copySheetUrl: string;         // direct /copy URL for Google Sheets
   canonicalPrompt: string;
+
+  // Plan-based access control
+  minPlan: PlanId;              // minimum plan required
+  adminOnly?: boolean;          // templates only visible to admin
 };
 
 // Central source of truth for all templates shown in the UI.
@@ -33,6 +39,8 @@ export const SHEET_TEMPLATE_LIST: SheetTemplate[] = [
       "https://docs.google.com/spreadsheets/d/19MtunOekO0WALbelH_PYEKEmAAPi3nt-Jusc5dt0p2s/copy",
     canonicalPrompt:
       'Design a professional Google Sheet based on "Monthly Revenue & Expenses" for my business.',
+    minPlan: "starter",
+    adminOnly: false,
   },
   {
     slug: "content-calendar",
@@ -47,6 +55,8 @@ export const SHEET_TEMPLATE_LIST: SheetTemplate[] = [
       "https://docs.google.com/spreadsheets/d/1QbC0B3AkwFo4O9ztQEdJ5WmI72pEQ37SVHNrut32B5c/copy",
     canonicalPrompt:
       'Design a professional Google Sheet based on "Content Calendar" for my business.',
+    minPlan: "starter",
+    adminOnly: false,
   },
   {
     slug: "ops-daily-checklist",
@@ -61,6 +71,8 @@ export const SHEET_TEMPLATE_LIST: SheetTemplate[] = [
       "https://docs.google.com/spreadsheets/d/11tlKQVvkCxMKlwdKslXmdyjurCySJu-1TVKOxyxk3cM/copy",
     canonicalPrompt:
       'Design a professional Google Sheet based on "Ops Daily Checklist" for my business.',
+    minPlan: "pro",
+    adminOnly: false,
   },
   {
     slug: "personal-budget-savings",
@@ -75,20 +87,39 @@ export const SHEET_TEMPLATE_LIST: SheetTemplate[] = [
       "https://docs.google.com/spreadsheets/d/1t7igFex-gmqnuiltPHITsAqXHfMwtKFgOBTElWbAyWc/copy",
     canonicalPrompt:
       'Design a professional Google Sheet based on "Personal Budget & Savings" for my finances.',
+    minPlan: "free",
+    adminOnly: false,
   },
 ];
 
-export type Plan = "free" | "starter" | "pro" | "enterprise" | "admin";
+function canUseTemplate(opts: {
+  template: SheetTemplate;
+  plan: PlanId;
+  isAdmin: boolean;
+}): boolean {
+  const { template, plan, isAdmin } = opts;
 
-export function SheetTemplateLibrary(props: {
-  userEmail?: string | null;
-  userPlan?: Plan;
-}) {
-  const { userEmail, userPlan = "free" } = props;
-  const isAdmin = userEmail === "admin@sheetbuilder.ai";
+  if (isAdmin) return true;
+  if (template.adminOnly) return false;
 
-  // Filtering is temporarily disabled as the new data structure doesn't support plan/admin gating yet.
-  const visibleTemplates = SHEET_TEMPLATE_LIST;
+  const order: PlanId[] = ["free", "starter", "pro", "enterprise"];
+  const planIndex = order.indexOf(plan);
+  const minIndex = order.indexOf(template.minPlan);
+
+  if (planIndex === -1 || minIndex === -1) {
+    // Fallback: if something is weird, be safe and require upgrade
+    return false;
+  }
+
+  return planIndex >= minIndex;
+}
+
+export function SheetTemplateLibrary(props: { plan: PlanId; isAdmin: boolean }) {
+  const { plan, isAdmin } = props;
+
+  const visibleTemplates = SHEET_TEMPLATE_LIST.filter((t) =>
+    canUseTemplate({ template: t, plan, isAdmin })
+  );
 
   return (
     <div className="flex flex-col gap-6">
