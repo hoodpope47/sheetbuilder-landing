@@ -1,23 +1,81 @@
 "use client";
 
-const demoSheets = [
-    {
-        id: "sales-pipeline-v1",
-        name: "Sales pipeline tracker",
-        category: "Sales",
-        status: "Draft",
-        lastUpdated: "2025-11-30",
-    },
-    {
-        id: "income-expense-v1",
-        name: "Income & expense tracker",
-        category: "Finance",
-        status: "Active",
-        lastUpdated: "2025-11-20",
-    },
-];
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { supabase } from "@/lib/supabaseClient";
+import { getOrCreateLocalUserId } from "@/lib/userClient";
+import { MySheetsTable, type SheetData } from "@/components/dashboard/sheets/MySheetsTable";
+
+function formatDate(dateString: string): string {
+    try {
+        const date = new Date(dateString);
+        return new Intl.DateTimeFormat("en-US", {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+        }).format(date);
+    } catch {
+        return dateString;
+    }
+}
 
 export default function MySheetsPage() {
+    const [sheets, setSheets] = useState<SheetData[]>([]);
+    const [loadError, setLoadError] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        async function loadSheets() {
+            try {
+                setIsLoading(true);
+                setLoadError(false);
+
+                // Get current user from Supabase session
+                const { data: { user } } = await supabase.auth.getUser();
+                const userId = user?.id || getOrCreateLocalUserId();
+
+                // Simple query to sheet_specs - no joins
+                const { data: specs, error } = await supabase
+                    .from("sheet_specs")
+                    .select("*")
+                    .eq("user_id", userId)
+                    .order("created_at", { ascending: false });
+
+                if (error) {
+                    console.error("[MySheetsPage] Supabase error:", error);
+                    throw error;
+                }
+
+                // Build sheet rows with safe fallbacks
+                const processedSheets: SheetData[] = (specs || []).map((spec: any) => {
+                    const title = spec.title || spec.text || "Untitled Sheet";
+                    const templateSlug = spec.template_slug || spec.slug || "custom-sheet";
+                    const category = spec.category || "General";
+                    const createdAt = spec.updated_at || spec.created_at || new Date().toISOString();
+
+                    return {
+                        id: spec.id,
+                        name: title,
+                        category,
+                        status: "Draft" as const, // Will wire events later
+                        lastUpdated: formatDate(createdAt),
+                        templateSlug,
+                    };
+                });
+
+                setSheets(processedSheets);
+            } catch (error) {
+                console.error("[MySheetsPage] Error loading sheets:", error);
+                setLoadError(true);
+                setSheets([]);
+            } finally {
+                setIsLoading(false);
+            }
+        }
+
+        loadSheets();
+    }, []);
+
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -27,64 +85,21 @@ export default function MySheetsPage() {
                         Manage your generated sheets and templates.
                     </p>
                 </div>
-                <button className="rounded-full bg-emerald-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-emerald-400">
+                <Link
+                    href="/dashboard/templates"
+                    className="rounded-full bg-emerald-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-emerald-400"
+                >
                     + New sheet
-                </button>
+                </Link>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white">
-                <div className="border-b border-slate-200 px-4 py-3">
-                    <p className="text-xs font-semibold text-slate-600">All sheets</p>
+            {isLoading ? (
+                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-6">
+                    <p className="text-sm text-slate-500 text-center">Loading your sheets...</p>
                 </div>
-                {demoSheets.length === 0 ? (
-                    <div className="px-4 py-6 text-xs text-slate-500">
-                        You don&apos;t have any sheets yet. Generate one from the button
-                        above.
-                    </div>
-                ) : (
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full text-xs">
-                            <thead>
-                                <tr className="border-b border-slate-100 bg-slate-50 text-[11px] text-slate-500">
-                                    <th className="px-4 py-2 text-left font-medium">Name</th>
-                                    <th className="px-4 py-2 text-left font-medium">Category</th>
-                                    <th className="px-4 py-2 text-left font-medium">Status</th>
-                                    <th className="px-4 py-2 text-left font-medium">
-                                        Last updated
-                                    </th>
-                                    <th className="px-4 py-2 text-right font-medium">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {demoSheets.map((sheet) => (
-                                    <tr
-                                        key={sheet.id}
-                                        className="border-b border-slate-100 last:border-0"
-                                    >
-                                        <td className="px-4 py-2 text-slate-800">{sheet.name}</td>
-                                        <td className="px-4 py-2 text-slate-600">
-                                            {sheet.category}
-                                        </td>
-                                        <td className="px-4 py-2">
-                                            <span className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-700">
-                                                {sheet.status}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-2 text-slate-600">
-                                            {sheet.lastUpdated}
-                                        </td>
-                                        <td className="px-4 py-2 text-right">
-                                            <button className="text-[11px] font-semibold text-emerald-600 hover:text-emerald-500">
-                                                Open
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </div>
+            ) : (
+                <MySheetsTable sheets={sheets} loadError={loadError} />
+            )}
         </div>
     );
 }

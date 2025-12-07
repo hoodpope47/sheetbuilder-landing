@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { FeedbackWidget } from "@/components/templates/FeedbackWidget";
 
 type SavedSpec = {
     id: string;
@@ -49,27 +50,30 @@ export function SavedSpecsList({ specs }: SavedSpecsListProps) {
                     </p>
                 </div>
             ) : (
-                <ul className="mt-3 space-y-2">
+                <ul className="mt-3 space-y-3">
                     {specs.map((spec) => (
                         <li
                             key={spec.id}
-                            className="group flex items-start justify-between gap-2 rounded-lg px-2 py-2 hover:bg-slate-50"
+                            className="group flex flex-col gap-2 rounded-lg border border-slate-100 px-3 py-2.5 hover:bg-slate-50"
                         >
-                            <div className="min-w-0 flex-1">
-                                <p className="truncate text-xs font-medium text-slate-800">
-                                    {spec.title || "Untitled setup"}
-                                </p>
-                                {spec.description && (
-                                    <p className="mt-0.5 line-clamp-2 text-[11px] text-slate-500">
-                                        {spec.description}
+                            <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                    <p className="truncate text-xs font-medium text-slate-800">
+                                        {spec.title || "Untitled setup"}
                                     </p>
+                                    {spec.description && (
+                                        <p className="mt-0.5 line-clamp-2 text-[11px] text-slate-500">
+                                            {spec.description}
+                                        </p>
+                                    )}
+                                </div>
+                                {spec.created_at && (
+                                    <span className="shrink-0 text-[10px] text-slate-400 group-hover:text-slate-500">
+                                        {formatDate(spec.created_at)}
+                                    </span>
                                 )}
                             </div>
-                            {spec.created_at && (
-                                <span className="shrink-0 text-[10px] text-slate-400 group-hover:text-slate-500">
-                                    {formatDate(spec.created_at)}
-                                </span>
-                            )}
+                            <FeedbackWidget sheetSpecId={spec.id} />
                         </li>
                     ))}
                 </ul>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
     LineChart,
@@ -9,51 +10,53 @@ import {
     Tooltip,
     ResponsiveContainer,
 } from "recharts";
+import { supabase } from "@/lib/supabaseClient";
+import { getOrCreateLocalUserId } from "@/lib/userClient";
+import { getUsageMetrics, type UsageMetrics } from "@/lib/usage";
 import { UsageByCategoryCard } from "@/components/dashboard/overview/UsageByCategoryCard";
 import { cardClasses, textStyles, palette, layout } from "@/design-system/theme";
 
-// Demo data for the line chart (sheets generated over time).
-// Later we can replace this with real per-user data from Supabase.
-const usageTrend = [
-    { month: "Jan", sheets: 5 },
-    { month: "Feb", sheets: 7 },
-    { month: "Mar", sheets: 10 },
-    { month: "Apr", sheets: 13 },
-    { month: "May", sheets: 16 },
-    { month: "Jun", sheets: 20 },
-];
-
-// Demo recent sheets list.
-// You can wire this to a real "sheets" table later.
-const recentSheets = [
-    {
-        id: "1",
-        name: "Monthly Revenue & Expenses – May",
-        category: "Finance",
-        createdAt: "2 days ago",
-    },
-    {
-        id: "2",
-        name: "Content Calendar – Q3",
-        category: "Marketing",
-        createdAt: "5 days ago",
-    },
-    {
-        id: "3",
-        name: "Ops Daily Checklist – Team A",
-        category: "Ops",
-        createdAt: "1 week ago",
-    },
-];
-
 export default function DashboardPage() {
+    const [metrics, setMetrics] = useState<UsageMetrics>({
+        sheetsThisMonth: 0,
+        totalSheets: 0,
+        planLimit: 5,
+        usagePercent: 0,
+        monthlyUsageSeries: [],
+        usingDemoData: true,
+    });
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        async function loadMetrics() {
+            try {
+                setIsLoading(true);
+
+                // Get current user
+                const { data: { user } } = await supabase.auth.getUser();
+                const userId = user?.id || getOrCreateLocalUserId();
+
+                // Fetch usage metrics
+                const usageMetrics = await getUsageMetrics(supabase, userId);
+                setMetrics(usageMetrics);
+            } catch (error) {
+                console.error("[Dashboard] Error loading metrics:", error);
+                // Keep default metrics on error
+            } finally {
+                setIsLoading(false);
+            }
+        }
+
+        loadMetrics();
+    }, []);
+
     return (
         <main className={`${layout.mainContainer} ${layout.pagePadding}`}>
             {/* Header */}
             <div className="mb-6 flex items-center justify-between gap-4">
                 <div>
                     <h1 className={`text-2xl font-semibold ${palette.textPrimary}`}>
-                        Welcome back, Demo.
+                        Welcome back.
                     </h1>
                     <p className={`mt-1 text-sm ${palette.textMuted}`}>
                         Here&apos;s how your sheets and automations are doing this month.
@@ -61,7 +64,7 @@ export default function DashboardPage() {
                 </div>
 
                 <Link
-                    href="/dashboard/sheets/new"
+                    href="/dashboard/templates"
                     className="inline-flex items-center rounded-full bg-emerald-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-600"
                 >
                     + New sheet
@@ -75,7 +78,7 @@ export default function DashboardPage() {
                         Sheets created
                     </p>
                     <p className={`mt-2 ${textStyles.cardMetric}`}>
-                        0
+                        {isLoading ? "—" : metrics.sheetsThisMonth}
                     </p>
                     <p className={`mt-1 text-xs ${palette.textMuted}`}>
                         This month
@@ -87,7 +90,7 @@ export default function DashboardPage() {
                         Total sheets
                     </p>
                     <p className={`mt-2 ${textStyles.cardMetric}`}>
-                        12
+                        {isLoading ? "—" : metrics.totalSheets}
                     </p>
                     <p className={`mt-1 text-xs ${palette.textMuted}`}>
                         All time
@@ -102,7 +105,7 @@ export default function DashboardPage() {
                         Free
                     </p>
                     <p className={`mt-1 text-xs ${palette.textMuted}`}>
-                        Renews in 12 days
+                        5 sheets/month
                     </p>
                 </div>
 
@@ -111,10 +114,10 @@ export default function DashboardPage() {
                         Usage
                     </p>
                     <p className={`mt-2 ${textStyles.cardMetric}`}>
-                        0%
+                        {isLoading ? "—" : `${Math.round(metrics.usagePercent)}%`}
                     </p>
                     <p className={`mt-1 text-xs ${palette.textMuted}`}>
-                        0 / 5 sheets this month
+                        {metrics.sheetsThisMonth} / {metrics.planLimit} sheets this month
                     </p>
                 </div>
             </div>
@@ -132,19 +135,22 @@ export default function DashboardPage() {
                                 Sheets generated over time
                             </p>
                         </div>
-                        <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-medium uppercase tracking-wide text-emerald-600">
-                            Demo data
+                        <span className={`rounded-full px-2 py-1 text-[10px] font-medium uppercase tracking-wide ${metrics.usingDemoData
+                                ? "bg-amber-50 text-amber-600"
+                                : "bg-emerald-50 text-emerald-600"
+                            }`}>
+                            {metrics.usingDemoData ? "Demo data" : "Live data"}
                         </span>
                     </div>
 
                     <div className="h-56">
                         <ResponsiveContainer width="100%" height="100%">
                             <LineChart
-                                data={usageTrend}
+                                data={metrics.monthlyUsageSeries}
                                 margin={{ top: 10, right: 16, left: -20, bottom: 0 }}
                             >
                                 <XAxis
-                                    dataKey="month"
+                                    dataKey="monthLabel"
                                     tickLine={false}
                                     axisLine={false}
                                     tick={{ fontSize: 12, fill: "#9ca3af" }}
@@ -169,7 +175,7 @@ export default function DashboardPage() {
                                 />
                                 <Line
                                     type="monotone"
-                                    dataKey="sheets"
+                                    dataKey="count"
                                     stroke="#22c55e"
                                     strokeWidth={2}
                                     dot={false}
@@ -180,7 +186,7 @@ export default function DashboardPage() {
                     </div>
                 </div>
 
-                {/* Donut chart card (hover-to-pop is handled inside UsageByCategoryCard) */}
+                {/* Donut chart card */}
                 <UsageByCategoryCard />
             </div>
 
@@ -193,7 +199,7 @@ export default function DashboardPage() {
                         </p>
                         <p className={`text-xs ${palette.textMuted}`}>
                             No sheets created yet. Generate your first AI-built sheet from the
-                            &quot;My Sheets&quot; tab.
+                            &quot;Templates&quot; tab.
                         </p>
                     </div>
                     <Link
@@ -202,30 +208,6 @@ export default function DashboardPage() {
                     >
                         View all
                     </Link>
-                </div>
-
-                <div className="divide-y divide-slate-100 text-sm">
-                    {recentSheets.map((sheet) => (
-                        <div
-                            key={sheet.id}
-                            className="flex items-center justify-between py-2.5"
-                        >
-                            <div>
-                                <p className={`font-medium ${palette.textPrimary}`}>
-                                    {sheet.name}
-                                </p>
-                                <p className={`text-xs ${palette.textMuted}`}>
-                                    {sheet.category} · {sheet.createdAt}
-                                </p>
-                            </div>
-                            <Link
-                                href="/dashboard/sheets"
-                                className={`text-xs font-medium ${palette.textMuted} hover:${palette.textPrimary}`}
-                            >
-                                Open
-                            </Link>
-                        </div>
-                    ))}
                 </div>
             </div>
         </main>

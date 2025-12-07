@@ -1,137 +1,133 @@
-"use client";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { supabase } from "./supabaseClient";
-
-export type PlanTier = "free" | "starter" | "pro" | "enterprise";
-
-export interface ProfileInfo {
-    id: string;
-    email: string | null;
-    fullName: string | null;
-    plan: PlanTier;
-}
-
-export interface UsageSummary {
+export type UsageMetrics = {
     sheetsThisMonth: number;
-    lastSheetAt: string | null;
+    totalSheets: number;
+    planLimit: number;
+    usagePercent: number;
+    monthlyUsageSeries: Array<{ monthLabel: string; count: number }>;
+    usingDemoData: boolean;
+};
+
+const DEMO_DATA = [
+    { monthLabel: "Jan", count: 5 },
+    { monthLabel: "Feb", count: 7 },
+    { monthLabel: "Mar", count: 10 },
+    { monthLabel: "Apr", count: 13 },
+    { monthLabel: "May", count: 16 },
+    { monthLabel: "Jun", count: 20 },
+];
+
+function getStartOfMonth(date: Date): Date {
+    return new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0);
 }
 
-const DEMO_USER_ID_KEY = "sheetbuilder_demo_user_id";
-
-function ensureDemoUserId(): string {
-    if (typeof window === "undefined") return "demo-user-static";
-    let existing = window.localStorage.getItem(DEMO_USER_ID_KEY);
-    if (!existing) {
-        existing = "demo-user-" + Math.random().toString(36).slice(2, 10);
-        window.localStorage.setItem(DEMO_USER_ID_KEY, existing);
-    }
-    return existing;
+function getMonthsAgo(date: Date, months: number): Date {
+    const result = new Date(date);
+    result.setMonth(result.getMonth() - months);
+    return result;
 }
 
-export async function fetchProfileAndUsage(): Promise<{
-    profile: ProfileInfo;
-    usage: UsageSummary;
-}> {
-    const demoUserId = ensureDemoUserId();
-    const client = supabase;
+function formatMonthLabel(date: Date): string {
+    return date.toLocaleString("en-US", { month: "short" });
+}
 
-    // Fallback mock if Supabase is not configured
-    if (!client) {
-        return {
-            profile: {
-                id: demoUserId,
-                email: "demo@sheetbuilder.ai",
-                fullName: "Demo User",
-                plan: "free",
-            },
-            usage: {
-                sheetsThisMonth: 3,
-                lastSheetAt: null,
-            },
-        };
+export async function getUsageMetrics(
+    supabase: SupabaseClient,
+    userId: string
+): Promise<UsageMetrics> {
+    const now = new Date();
+    const startOfMonth = getStartOfMonth(now);
+    const twelveMonthsAgo = getMonthsAgo(now, 11);
+
+    // Query events for this month
+    const { data: monthEvents, error: monthError } = await supabase
+        .from("sheet_events_log")
+        .select("id, event_type, created_at, sheet_spec_id")
+        .eq("user_id", userId)
+        .gte("created_at", startOfMonth.toISOString())
+        .lte("created_at", now.toISOString());
+
+    if (monthError) {
+        console.error("[usage] Failed to fetch month events:", monthError);
+        throw monthError;
     }
 
-    try {
-        const { data: profileRow, error: profileError } = await client
-            .from("profiles")
-            .select("*")
-            .eq("id", demoUserId)
-            .maybeSingle();
+    // Query events for last 12 months
+    const { data: yearEvents, error: yearError } = await supabase
+        .from("sheet_events_log")
+        .select("id, event_type, created_at")
+        .eq("user_id", userId)
+        .gte("created_at", twelveMonthsAgo.toISOString())
+        .lte("created_at", now.toISOString());
 
-        if (profileError) {
-            console.warn("[Supabase] profile fetch error", profileError);
+    if (yearError) {
+        console.error("[usage] Failed to fetch year events:", yearError);
+        throw yearError;
+    }
+
+    // Count total sheets
+    const { count: totalSheetsCount, error: countError } = await supabase
+        .from("sheet_specs")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId);
+
+    if (countError) {
+        console.error("[usage] Failed to count sheets:", countError);
+        throw countError;
+    }
+
+    // Calculate metrics
+    const sheetsThisMonth = (monthEvents || []).filter(
+        (e) => e.event_type === "sheet_created"
+    ).length;
+
+    const totalSheets = totalSheetsCount || 0;
+
+    // Plan limit - default to 5 for free tier
+    // TODO: Wire to actual plan metadata when available
+    const planLimit = 5;
+
+    const usagePercent =
+        planLimit > 0 ? Math.min(100, (sheetsThisMonth / planLimit) * 100) : 0;
+
+    // Build monthly series
+    const eventsByMonth = new Map<string, number>();
+
+    (yearEvents || []).forEach((event) => {
+        if (event.event_type === "sheet_created") {
+            const eventDate = new Date(event.created_at);
+            const monthKey = `${eventDate.getFullYear()}-${String(eventDate.getMonth() + 1).padStart(2, "0")}`;
+            eventsByMonth.set(monthKey, (eventsByMonth.get(monthKey) || 0) + 1);
         }
+    });
 
-        const profile: ProfileInfo = {
-            id: demoUserId,
-            email: profileRow?.email ?? "demo@sheetbuilder.ai",
-            fullName: profileRow?.full_name ?? "Demo User",
-            plan: (profileRow?.plan as PlanTier) || "free",
-        };
+    // Generate series for last 12 months
+    const monthlyUsageSeries: Array<{ monthLabel: string; count: number }> = [];
+    let hasAnyData = false;
 
-        const { data: usageRows, error: usageError } = await client
-            .from("sheet_events")
-            .select("created_at")
-            .eq("user_id", demoUserId)
-            .gte(
-                "created_at",
-                new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
-            )
-            .order("created_at", { ascending: false });
+    for (let i = 11; i >= 0; i--) {
+        const monthDate = getMonthsAgo(now, i);
+        const monthKey = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, "0")}`;
+        const count = eventsByMonth.get(monthKey) || 0;
 
-        if (usageError) {
-            console.warn("[Supabase] usage fetch error", usageError);
-        }
+        if (count > 0) hasAnyData = true;
 
-        const sheetsThisMonth = usageRows?.length ?? 0;
-        const lastSheetAt =
-            usageRows && usageRows.length > 0 ? usageRows[0].created_at : null;
-
-        return {
-            profile,
-            usage: {
-                sheetsThisMonth,
-                lastSheetAt,
-            },
-        };
-    } catch (err) {
-        console.error("[Supabase] fetchProfileAndUsage failed", err);
-        return {
-            profile: {
-                id: demoUserId,
-                email: "demo@sheetbuilder.ai",
-                fullName: "Demo User",
-                plan: "free",
-            },
-            usage: {
-                sheetsThisMonth: 0,
-                lastSheetAt: null,
-            },
-        };
-    }
-}
-
-export async function logSheetCreated(sheetType: string): Promise<void> {
-    const client = supabase;
-    const demoUserId = ensureDemoUserId();
-
-    if (!client) {
-        console.warn("[Supabase] Skipping logSheetCreated because client is null.");
-        return;
-    }
-
-    try {
-        const { error } = await client.from("sheet_events").insert({
-            user_id: demoUserId,
-            event_type: "created",
-            sheet_type: sheetType,
-            metadata: {},
+        monthlyUsageSeries.push({
+            monthLabel: formatMonthLabel(monthDate),
+            count,
         });
-
-        if (error) {
-            console.warn("[Supabase] logSheetCreated insert error", error);
-        }
-    } catch (err) {
-        console.error("[Supabase] logSheetCreated failed", err);
     }
+
+    // If no data at all, use demo data
+    const usingDemoData = !hasAnyData;
+
+    return {
+        sheetsThisMonth,
+        totalSheets,
+        planLimit,
+        usagePercent,
+        monthlyUsageSeries: usingDemoData ? DEMO_DATA : monthlyUsageSeries,
+        usingDemoData,
+    };
 }
