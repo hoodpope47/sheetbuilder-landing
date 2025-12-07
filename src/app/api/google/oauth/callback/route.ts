@@ -1,69 +1,83 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { supabaseServer } from "@/lib/supabaseServer";
+import { exchangeCodeForTokens } from "@/lib/googleOAuthServer";
 import { captureError } from "@/lib/monitoring";
-import { getOAuthClient } from "@/lib/googleClient";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export async function GET(request: NextRequest) {
-    const url = new URL(request.url);
-    const errorParam = url.searchParams.get("error");
-    const code = url.searchParams.get("code");
-    const state = url.searchParams.get("state"); // Supabase user id
-
-    if (errorParam) {
-        return NextResponse.redirect(
-            new URL("/dashboard/settings?googleError=oauth_start_failed", request.url)
-        );
-    }
-
-    if (!code) {
-        return NextResponse.redirect(
-            new URL("/dashboard/settings?googleError=missing_code", request.url)
-        );
-    }
-
-    if (!state) {
-        return NextResponse.redirect(
-            new URL("/dashboard/settings?googleError=no_session", request.url)
-        );
-    }
-
     try {
-        const { oauth2Client } = getOAuthClient();
+        const url = new URL(request.url);
+        const code = url.searchParams.get("code");
+        const state = url.searchParams.get("state");
 
-        const { tokens } = await oauth2Client.getToken(code);
-        oauth2Client.setCredentials(tokens);
-
-        const { access_token, refresh_token, expiry_date } = tokens;
-
-        const payload: Record<string, any> = {
-            user_id: state,
-            access_token: access_token ?? null,
-            refresh_token: refresh_token ?? null,
-            expiry_date: expiry_date ? new Date(expiry_date).toISOString() : null
-        };
-
-        const { error } = await supabaseAdmin
-            .from("user_google_tokens")
-            .upsert(payload, { onConflict: "user_id" });
-
-        if (error) {
-            console.error("Supabase user_google_tokens upsert error", error);
-            captureError(error, { context: "google_oauth_callback_upsert" });
-
+        // Check for code and state
+        if (!code || !state) {
             return NextResponse.redirect(
-                new URL("/dashboard/settings?googleError=db_upsert_failed", request.url)
+                new URL("/dashboard/settings?googleStatus=error", request.url)
             );
         }
 
-        return NextResponse.redirect(
-            new URL("/dashboard/settings?googleStatus=connected", request.url)
-        );
-    } catch (error: any) {
-        console.error("Google OAuth callback failed", error);
-        captureError(error, { context: "google_oauth_callback" });
+        // Read and parse google_oauth_state cookie
+        const cookieStore = await cookies();
+        const stateCookie = cookieStore.get("google_oauth_state");
 
+        if (!stateCookie) {
+            return NextResponse.redirect(
+                new URL("/dashboard/settings?googleStatus=error&reason=state", request.url)
+            );
+        }
+
+        let stored: { state: string; userId: string; redirectTo: string };
+        try {
+            stored = JSON.parse(stateCookie.value);
+        } catch {
+            return NextResponse.redirect(
+                new URL("/dashboard/settings?googleStatus=error&reason=state", request.url)
+            );
+        }
+
+        // Verify state matches
+        if (state !== stored.state) {
+            return NextResponse.redirect(
+                new URL("/dashboard/settings?googleStatus=error&reason=state", request.url)
+            );
+        }
+
+        // Exchange code for tokens
+        const tokens = await exchangeCodeForTokens(code);
+
+        // Upsert tokens into user_google_tokens
+        const { error } = await supabaseServer
+            .from("user_google_tokens")
+            .upsert({
+                user_id: stored.userId,
+                access_token: tokens.access_token ?? null,
+                refresh_token: tokens.refresh_token ?? null,
+                scope: tokens.scope ?? null,
+                token_type: tokens.token_type ?? null,
+                expiry_date: tokens.expiry_date
+                    ? new Date(tokens.expiry_date).toISOString()
+                    : null
+            }, { onConflict: "user_id" });
+
+        if (error) {
+            captureError(error, { context: "api/google/oauth/callback/upsert" });
+            return NextResponse.redirect(
+                new URL("/dashboard/settings?googleStatus=error", request.url)
+            );
+        }
+
+        // Clear the state cookie
+        cookieStore.delete("google_oauth_state");
+
+        // Redirect to success page
         return NextResponse.redirect(
-            new URL("/dashboard/settings?googleError=callback_failed", request.url)
+            new URL(stored.redirectTo || "/dashboard/settings?googleStatus=connected", request.url)
+        );
+    } catch (error) {
+        captureError(error, { context: "api/google/oauth/callback" });
+        return NextResponse.redirect(
+            new URL("/dashboard/settings?googleStatus=error", request.url)
         );
     }
 }

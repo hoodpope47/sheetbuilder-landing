@@ -7,6 +7,7 @@ import {
 } from "@/components/dashboard/templates/SheetTemplateLibrary";
 import { logSheetEvent } from "@/lib/brain/logSheetEvent";
 import { cardClasses, textStyles } from "@/design-system/theme";
+import { CopyToGoogleButton } from "@/components/templates/CopyToGoogleButton";
 
 type PageProps = {
     params: Promise<{ slug: string }>;
@@ -88,15 +89,8 @@ export default async function TemplatePreviewPage(props: PageProps) {
                     />
 
                     <div className="space-y-3 pt-2">
-                        {/* Direct copy to Google Sheets */}
-                        <a
-                            href={template.copySheetUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex w-full items-center justify-center rounded-full bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-600"
-                        >
-                            Copy to Google Sheets
-                        </a>
+                        {/* Copy to Google Sheets with API logging */}
+                        <CopyToGoogleButton templateSlug={template.slug} />
 
                         {/* Customize link */}
                         <Link
