@@ -9,6 +9,7 @@ import {
 } from "@/lib/userClient";
 import { LogoutButton } from "@/components/dashboard/LogoutButton";
 import { GoogleSheetsConnectCard } from "@/components/dashboard/settings/GoogleSheetsConnectCard";
+import { GoogleStatusToaster } from "./GoogleStatusToaster";
 
 type TabId = "account" | "security" | "preferences" | "billing";
 
@@ -40,6 +41,8 @@ export default function SettingsPage() {
 
     return (
         <div className="space-y-6">
+            <GoogleStatusToaster />
+
             <div>
                 <h1 className="text-xl font-semibold tracking-tight">Settings</h1>
                 <p className="mt-1 text-sm text-slate-600">

@@ -1,96 +1,120 @@
 "use client";
 
-import { useState } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { supabase } from "@/lib/supabaseClient";
+import { cardClasses } from "@/design-system/theme";
+
+type ConnectionStatus = {
+    connected: boolean;
+    email: string | null;
+    updatedAt: string | null;
+};
 
 export function GoogleSheetsConnectCard() {
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [status, setStatus] = useState<ConnectionStatus>({
+        connected: false,
+        email: null,
+        updatedAt: null,
+    });
+    const [loading, setLoading] = useState(true);
+    const [userId, setUserId] = useState<string | null>(null);
 
-    async function handleConnect() {
-        try {
-            setError(null);
-            setLoading(true);
+    useEffect(() => {
+        async function fetchConnectionStatus() {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
 
-            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-            const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+                if (!user) {
+                    setLoading(false);
+                    return;
+                }
 
-            if (!supabaseUrl || !supabaseAnonKey) {
-                console.error(
-                    "[GoogleConnect] Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY"
-                );
-                setError(
-                    "Supabase is not configured correctly. Please check your environment variables."
-                );
-                setLoading(false);
-                return;
-            }
+                setUserId(user.id);
 
-            // Create a browser Supabase client
-            const supabase = createClient(supabaseUrl, supabaseAnonKey);
+                const { data: googleToken } = await supabase
+                    .from("user_google_tokens")
+                    .select("metadata, updated_at")
+                    .eq("user_id", user.id)
+                    .maybeSingle();
 
-            const redirectTo =
-                typeof window !== "undefined"
-                    ? `${window.location.origin}/dashboard/settings`
-                    : undefined;
-
-            const { error } = await supabase.auth.signInWithOAuth({
-                provider: "google",
-                options: {
-                    scopes:
-                        "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file",
-                    redirectTo,
-                },
-            });
-
-            if (error) {
-                console.error("[GoogleConnect] OAuth error", error);
-                setError(error.message);
+                if (googleToken) {
+                    setStatus({
+                        connected: true,
+                        email: googleToken.metadata?.google_email || null,
+                        updatedAt: googleToken.updated_at || null,
+                    });
+                }
+            } catch (error) {
+                console.error("[GoogleSheetsConnectCard] Error fetching status:", error);
+            } finally {
                 setLoading(false);
             }
-            // On success, Supabase will redirect to Google and then back to /dashboard/settings
-        } catch (err) {
-            console.error("[GoogleConnect] Unexpected error", err);
-            setError("Something went wrong starting Google sign-in.");
-            setLoading(false);
         }
-    }
+
+        fetchConnectionStatus();
+    }, []);
+
+    const formatDate = (dateString: string | null) => {
+        if (!dateString) return "";
+        try {
+            return new Date(dateString).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+            });
+        } catch {
+            return "";
+        }
+    };
+
+    const googleConnectHref = userId
+        ? `/api/google/oauth/start?uid=${encodeURIComponent(userId)}`
+        : "/dashboard/settings?googleError=no_session";
 
     return (
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
-            <div className="flex flex-col gap-3">
+        <div className={cardClasses.primary}>
+            <div className="flex items-start justify-between gap-4">
                 <div>
-                    <h2 className="text-sm font-semibold text-slate-900">
+                    <h2 className="text-sm font-medium text-slate-900">
                         Connect Google Sheets
                     </h2>
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="mt-1 text-sm text-slate-500">
                         Connect your Google account so AI Sheet Builder can create and
-                        manage Sheets directly in your Drive. You&apos;ll approve access on
-                        Google&apos;s side.
+                        manage spreadsheets directly in your Drive.
                     </p>
+
+                    {status.connected && (
+                        <p className="mt-2 text-xs text-slate-500">
+                            Connected as{" "}
+                            <span className="font-medium text-slate-700">
+                                {status.email ?? "Google account"}
+                            </span>
+                            {status.updatedAt && (
+                                <>
+                                    {" · Last updated "}
+                                    {formatDate(status.updatedAt)}
+                                </>
+                            )}
+                        </p>
+                    )}
                 </div>
 
-                <button
-                    type="button"
-                    onClick={handleConnect}
-                    disabled={loading}
-                    className="inline-flex items-center justify-center rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                    {loading ? "Redirecting to Google..." : "Connect Google Account"}
-                </button>
-
-                <p className="text-[11px] leading-relaxed text-slate-400">
-                    We request limited access to create and update spreadsheets on your
-                    behalf. You can revoke access anytime from your Google Account
-                    settings.
-                </p>
-
-                {error && (
-                    <p className="rounded-md bg-red-50 px-2 py-1 text-[11px] font-medium text-red-700">
-                        {error}
-                    </p>
+                {status.connected && (
+                    <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                        Connected
+                    </span>
                 )}
             </div>
-        </section>
+
+            <div className="mt-4">
+                <Link
+                    href={googleConnectHref}
+                    className="inline-flex items-center rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+                >
+                    {loading ? "Loading..." : status.connected ? "Reconnect Google" : "Connect Google Account"}
+                </Link>
+            </div>
+        </div>
     );
 }

@@ -26,6 +26,32 @@ export function DashboardShellDesktop({ children }: { children: ReactNode }) {
     const router = useRouter();
     const [theme, setTheme] = useState<"light" | "dark">("light");
     const [avatarOpen, setAvatarOpen] = useState(false);
+    const [userEmail, setUserEmail] = useState<string | null>(null);
+    const [userName, setUserName] = useState<string | null>(null);
+
+    // Fetch user info on mount
+    useEffect(() => {
+        async function loadUser() {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) {
+                    setUserEmail(user.email ?? null);
+
+                    // Try to get user profile for name
+                    const { data: profile } = await supabase
+                        .from("user_profiles")
+                        .select("full_name")
+                        .eq("user_id", user.id)
+                        .maybeSingle();
+
+                    setUserName(profile?.full_name ?? null);
+                }
+            } catch (err) {
+                console.error("[DashboardShell] Failed to load user", err);
+            }
+        }
+        loadUser();
+    }, []);
 
     // On mount, read the stored theme (if any)
     useEffect(() => {
@@ -171,10 +197,27 @@ export function DashboardShellDesktop({ children }: { children: ReactNode }) {
                                 onClick={() => setAvatarOpen((prev) => !prev)}
                                 className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-white text-xs font-semibold shadow-sm hover:scale-105 transition-transform"
                             >
-                                U
+                                {(() => {
+                                    const name = userName || userEmail || "User";
+                                    const initials = name
+                                        .split(" ")
+                                        .map((p) => p[0])
+                                        .join("")
+                                        .slice(0, 2)
+                                        .toUpperCase();
+                                    return initials;
+                                })()}
                             </button>
                             {avatarOpen && (
-                                <div className="absolute right-0 mt-2 w-44 rounded-2xl border border-slate-200 bg-white py-2 text-xs shadow-lg z-20">
+                                <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-slate-200 bg-white py-2 text-xs shadow-lg z-20">
+                                    {userEmail && (
+                                        <div className="px-4 py-3 border-b border-slate-100">
+                                            <p className="text-xs text-slate-500">Signed in as</p>
+                                            <p className="mt-1 text-sm font-semibold text-slate-900 truncate">
+                                                {userEmail}
+                                            </p>
+                                        </div>
+                                    )}
                                     <button
                                         type="button"
                                         onClick={() => {
