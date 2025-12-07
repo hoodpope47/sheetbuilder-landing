@@ -490,6 +490,7 @@ export async function updateUserPassword(newPassword: string) {
 // --- Dashboard User Helper for Server Components ---
 
 export type DashboardUser = {
+    id: string;  // Supabase auth.users id
     email: string | null;
     plan: string | null;
     metadata?: Record<string, any> | null;
@@ -505,16 +506,13 @@ export async function getDashboardUser(): Promise<DashboardUser | null> {
         } = await supabaseServer.auth.getUser();
 
         if (!user) {
-            return {
-                email: null,
-                plan: "free",
-                metadata: null,
-            };
+            return null;
         }
 
         // Check if we can hit Supabase for profile data
         if (!canHitSupabase(user.id)) {
             return {
+                id: user.id,
                 email: user.email ?? null,
                 plan: "free",
                 metadata: user.user_metadata ?? null,
@@ -536,16 +534,13 @@ export async function getDashboardUser(): Promise<DashboardUser | null> {
             "free";
 
         return {
+            id: user.id,
             email: user.email ?? null,
             plan: plan,
             metadata: (profile as any)?.metadata ?? user.user_metadata ?? null,
         };
     } catch (error) {
         console.error("[userClient] Failed to get dashboard user", error);
-        return {
-            email: null,
-            plan: "free",
-            metadata: null,
-        };
+        return null;
     }
 }

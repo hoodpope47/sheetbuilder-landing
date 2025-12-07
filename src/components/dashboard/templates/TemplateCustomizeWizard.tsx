@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useTransition } from "react";
+import { saveCustomizeWizardSpec } from "@/app/templates/customize/actions";
 
 type CustomizeWizardProps = {
     templateSlug: string;
     templateName: string;
     templateCategory: string;
-    saveAction: (formData: FormData) => void | Promise<void>;
 };
 
 type TimeHorizonPreset = "3m" | "6m" | "12m" | "custom";
@@ -20,7 +20,9 @@ type StyleTone =
 type Density = "spacious" | "normal" | "compact";
 
 export function TemplateCustomizeWizard(props: CustomizeWizardProps) {
-    const { templateSlug, templateName, templateCategory, saveAction } = props;
+    const { templateSlug, templateName, templateCategory } = props;
+
+    const [isPending, startTransition] = useTransition();
 
     // STEP 1 — What are we building?
     const [goal, setGoal] = useState(
@@ -211,6 +213,62 @@ export function TemplateCustomizeWizard(props: CustomizeWizardProps) {
         return "How should this sheet feel?";
     };
 
+    const handleSaveSetup = () => {
+        const payload = {
+            templateSlug,
+            title: templateName,
+            description: goal.trim() || `Custom setup for ${templateName}`,
+            goal,
+            category,
+            audience,
+            timeHorizon: (() => {
+                if (timePreset === "3m") return { length: 3, unit: "months" };
+                if (timePreset === "6m") return { length: 6, unit: "months" };
+                if (timePreset === "12m") return { length: 12, unit: "months" };
+                const parsed = parseInt(customLength || "12", 10);
+                return {
+                    length: Number.isNaN(parsed) ? 12 : parsed,
+                    unit: customUnit || "months",
+                };
+            })(),
+            timeGrain,
+            expectedVolume: expectedVolume || null,
+            inputs: inputsText.split(/[,\n]/).map((s) => s.trim()).filter(Boolean),
+            kpis: kpisText.split(/[,\n]/).map((s) => s.trim()).filter(Boolean),
+            views: {
+                summary_tab: summaryTab,
+                detail_tab: detailTab,
+                time_trend_chart: timeTrendChart,
+                breakdown_chart: breakdownChart,
+                checklist_view: checklistView,
+                notes: viewsNotes || null,
+            },
+            style: {
+                tone: styleTone,
+                brand_colors: brandColors.split(/[,\n]/).map((s) => s.trim()).filter(Boolean),
+                density,
+                extras: extras.split(/[,\n]/).map((s) => s.trim()).filter(Boolean),
+            },
+        };
+
+        startTransition(async () => {
+            try {
+                const result = await saveCustomizeWizardSpec(payload);
+
+                if (result?.ok) {
+                    console.log("[CustomizeWizard] Saved sheet spec", result.specId);
+                    // TODO: Show success toast when toast system is available
+                } else {
+                    console.error("[CustomizeWizard] Failed to save spec", result);
+                    // TODO: Show error toast when toast system is available
+                }
+            } catch (err) {
+                console.error("[CustomizeWizard] Error while saving spec", err);
+                // TODO: Show error toast when toast system is available
+            }
+        });
+    };
+
     return (
         <div className="min-h-screen bg-slate-50 px-6 py-8">
             <div className="mx-auto max-w-5xl space-y-6">
@@ -244,10 +302,7 @@ export function TemplateCustomizeWizard(props: CustomizeWizardProps) {
                     </div>
 
                     {/* Wizard body */}
-                    <form
-                        className="grid gap-6 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]"
-                        action={saveAction}
-                    >
+                    <div className="grid gap-6 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
                         {/* LEFT: steps */}
                         <div className="space-y-6">
                             <h2 className="text-sm font-semibold text-slate-900">
@@ -623,17 +678,19 @@ export function TemplateCustomizeWizard(props: CustomizeWizardProps) {
 
                                     {currentStep === totalSteps && (
                                         <button
-                                            type="submit"
-                                            className="rounded-full bg-emerald-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700"
+                                            type="button"
+                                            onClick={handleSaveSetup}
+                                            disabled={isPending}
+                                            className="rounded-full bg-emerald-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-60"
                                         >
-                                            Save setup
+                                            {isPending ? "Saving..." : "Save setup"}
                                         </button>
                                     )}
                                 </div>
                             </div>
                         </div>
 
-                        {/* RIGHT: prompt preview + hidden fields */}
+                        {/* RIGHT: prompt preview */}
                         <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
                             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
                                 AI prompt preview
@@ -644,18 +701,8 @@ export function TemplateCustomizeWizard(props: CustomizeWizardProps) {
                             <pre className="mt-2 max-h-[260px] overflow-auto rounded-xl bg-slate-900 px-3 py-2 text-[10px] leading-snug text-slate-50">
                                 {promptPreview}
                             </pre>
-
-                            {/* Hidden fields for server action */}
-                            <input type="hidden" name="template_slug" value={templateSlug} />
-                            <input type="hidden" name="title" value={templateName} />
-                            <input type="hidden" name="description" value={goal} />
-                            <input
-                                type="hidden"
-                                name="spec_json"
-                                value={JSON.stringify(specJson)}
-                            />
                         </div>
-                    </form>
+                    </div>
                 </div>
             </div>
         </div>
