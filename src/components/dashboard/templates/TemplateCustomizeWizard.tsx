@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState, useTransition } from "react";
 import { saveCustomizeWizardSpec } from "@/app/templates/customize/actions";
+import { AIPrefillDialog } from "@/components/templates/AIPrefillDialog";
 
 type CustomizeWizardProps = {
     templateSlug: string;
@@ -56,6 +57,40 @@ export function TemplateCustomizeWizard(props: CustomizeWizardProps) {
 
     const [currentStep, setCurrentStep] = useState(1);
     const totalSteps = 4;
+
+    // Handler for AI prefill
+    function handleAIPrefill(payload: {
+        suggestedTitle: string;
+        suggestedDescription: string;
+        suggestedSpecJson: Record<string, unknown>;
+    }) {
+        const { suggestedTitle, suggestedDescription, suggestedSpecJson } = payload;
+
+        // Update title and description
+        setGoal(suggestedDescription || `Use this "${templateName}" sheet for my business.`);
+
+        // Map AI spec to wizard state
+        if (suggestedSpecJson.category) {
+            setCategory(String(suggestedSpecJson.category));
+        }
+        if (suggestedSpecJson.audience) {
+            setAudience(String(suggestedSpecJson.audience));
+        }
+        if (suggestedSpecJson.inputs && Array.isArray(suggestedSpecJson.inputs)) {
+            setInputsText(suggestedSpecJson.inputs.join(", "));
+        }
+        if (suggestedSpecJson.kpis && Array.isArray(suggestedSpecJson.kpis)) {
+            setKpisText(suggestedSpecJson.kpis.join(", "));
+        }
+        if (suggestedSpecJson.timeHorizon) {
+            const horizon = suggestedSpecJson.timeHorizon as any;
+            if (horizon.length && horizon.unit) {
+                setCustomLength(String(horizon.length));
+                setCustomUnit(horizon.unit);
+                setTimePreset("custom");
+            }
+        }
+    }
 
     // Build structured spec object
     const specJson = useMemo(() => {
@@ -281,6 +316,15 @@ export function TemplateCustomizeWizard(props: CustomizeWizardProps) {
                         We&apos;ll use your answers to generate a tailored sheet for your
                         workflow.
                     </p>
+
+                    {/* AI Prefill Button */}
+                    <div className="pt-2">
+                        <AIPrefillDialog
+                            templateName={templateName}
+                            templateCategory={templateCategory}
+                            onApply={handleAIPrefill}
+                        />
+                    </div>
                 </div>
 
                 <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

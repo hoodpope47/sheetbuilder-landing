@@ -4,7 +4,7 @@ import { supabaseServer } from "@/lib/supabaseServer";
 import {
     logSheetEvent,
     type SheetEventType,
-} from "@/lib/analytics/sheetEvents";
+} from "@/lib/brain/logSheetEvent";
 
 export type SheetSpecInput = {
     userId: string | null;
@@ -70,7 +70,7 @@ async function safeLogSheetEvent(params: LogParams) {
             sheetSpecId: params.sheetSpecId,
             templateSlug: params.templateSlug,
             eventType: params.eventType,
-            metadata: null,
+            metadata: undefined,
         });
     } catch (err) {
         console.error("[sheetSpecs] Failed to log sheet event", {
