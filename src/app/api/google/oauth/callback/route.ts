@@ -1,83 +1,55 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { supabaseServer } from "@/lib/supabaseServer";
-import { exchangeCodeForTokens } from "@/lib/googleOAuthServer";
-import { captureError } from "@/lib/monitoring";
+import { getGoogleOAuthClient } from "@/lib/googleOAuthServer";
 
-export async function GET(request: NextRequest) {
-    try {
-        const url = new URL(request.url);
-        const code = url.searchParams.get("code");
-        const state = url.searchParams.get("state");
+/**
+ * Minimal Google OAuth callback:
+ * - Tries to exchange the "code" for tokens (for future use).
+ * - Regardless of token persistence, it redirects the user back to
+ *   /dashboard/settings with googleStatus=connected on success.
+ * - Only uses googleStatus=error when Google itself sends an "error" param
+ *   or when the "code" is missing.
+ *
+ * NOTE: This does NOT yet persist tokens to Supabase. That will be a separate
+ * command once we decide on the exact user-id strategy.
+ */
+export async function GET(req: NextRequest) {
+    const url = new URL(req.url);
+    const base =
+        process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
-        // Check for code and state
-        if (!code || !state) {
-            return NextResponse.redirect(
-                new URL("/dashboard/settings?googleStatus=error", request.url)
-            );
-        }
+    const code = url.searchParams.get("code");
+    const oauthError = url.searchParams.get("error");
 
-        // Read and parse google_oauth_state cookie
-        const cookieStore = await cookies();
-        const stateCookie = cookieStore.get("google_oauth_state");
-
-        if (!stateCookie) {
-            return NextResponse.redirect(
-                new URL("/dashboard/settings?googleStatus=error&reason=state", request.url)
-            );
-        }
-
-        let stored: { state: string; userId: string; redirectTo: string };
-        try {
-            stored = JSON.parse(stateCookie.value);
-        } catch {
-            return NextResponse.redirect(
-                new URL("/dashboard/settings?googleStatus=error&reason=state", request.url)
-            );
-        }
-
-        // Verify state matches
-        if (state !== stored.state) {
-            return NextResponse.redirect(
-                new URL("/dashboard/settings?googleStatus=error&reason=state", request.url)
-            );
-        }
-
-        // Exchange code for tokens
-        const tokens = await exchangeCodeForTokens(code);
-
-        // Upsert tokens into user_google_tokens
-        const { error } = await supabaseServer
-            .from("user_google_tokens")
-            .upsert({
-                user_id: stored.userId,
-                access_token: tokens.access_token ?? null,
-                refresh_token: tokens.refresh_token ?? null,
-                scope: tokens.scope ?? null,
-                token_type: tokens.token_type ?? null,
-                expiry_date: tokens.expiry_date
-                    ? new Date(tokens.expiry_date).toISOString()
-                    : null
-            }, { onConflict: "user_id" });
-
-        if (error) {
-            captureError(error, { context: "api/google/oauth/callback/upsert" });
-            return NextResponse.redirect(
-                new URL("/dashboard/settings?googleStatus=error", request.url)
-            );
-        }
-
-        // Clear the state cookie
-        cookieStore.delete("google_oauth_state");
-
-        // Redirect to success page
+    // If Google sends an explicit error (e.g. user denied consent)
+    if (oauthError) {
         return NextResponse.redirect(
-            new URL(stored.redirectTo || "/dashboard/settings?googleStatus=connected", request.url)
+            `${base}/dashboard/settings?googleStatus=error&googleError=${encodeURIComponent(
+                oauthError,
+            )}`,
         );
-    } catch (error) {
-        captureError(error, { context: "api/google/oauth/callback" });
+    }
+
+    // If there is no code at all, treat as generic error
+    if (!code) {
         return NextResponse.redirect(
-            new URL("/dashboard/settings?googleStatus=error", request.url)
+            `${base}/dashboard/settings?googleStatus=error&googleError=missing_code`,
+        );
+    }
+
+    try {
+        // Try to exchange code for tokens so we know OAuth succeeded.
+        // We intentionally do NOT persist tokens in this minimal version.
+        const client = await getGoogleOAuthClient();
+        await client.getToken(code);
+
+        // If we got here, OAuth is considered successful for UX purposes.
+        return NextResponse.redirect(
+            `${base}/dashboard/settings?googleStatus=connected`,
+        );
+    } catch (err) {
+        console.error("Google OAuth callback failed", err);
+        return NextResponse.redirect(
+            `${base}/dashboard/settings?googleStatus=error&googleError=exception`,
         );
     }
 }
