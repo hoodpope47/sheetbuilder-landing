@@ -2,7 +2,6 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
-import { useSearchParams } from "next/navigation";
 import {
     updateUserProfile,
     updateUserPreferences,
@@ -64,8 +63,6 @@ type SummaryCard = {
     body?: string;
 };
 
-const GOOGLE_CONNECTION_KEY_PREFIX = "ai-sheet-builder-google-connected";
-
 export function SettingsPageClient({
     initialProfile: _initialProfile,
     workspaceUserId,
@@ -74,58 +71,9 @@ export function SettingsPageClient({
     googleConnectedLabel,
     googleLastUpdatedLabel,
     googleStatus,
-    googleError: _googleError,
+    googleError,
 }: SettingsPageClientProps) {
     const [activeTab, setActiveTab] = useState<TabId>("account");
-    const [googleConnected, setGoogleConnected] = useState<boolean>(initialGoogleConnected);
-
-    // On mount, hydrate googleConnected from localStorage if present
-    useEffect(() => {
-        if (typeof window === "undefined") return;
-
-        try {
-            const key = GOOGLE_CONNECTION_KEY_PREFIX;
-
-            const stored = window.localStorage.getItem(key);
-            if (stored === "true") {
-                setGoogleConnected(true);
-            } else if (stored === "false") {
-                setGoogleConnected(false);
-            }
-            // If nothing is stored, keep initialGoogleConnected
-        } catch (err) {
-            console.error("Failed to read Google connection state", err);
-        }
-    }, []);
-
-    // Whenever googleConnected changes, persist to localStorage
-    useEffect(() => {
-        if (typeof window === "undefined") return;
-
-        try {
-            const key = GOOGLE_CONNECTION_KEY_PREFIX;
-            window.localStorage.setItem(key, googleConnected ? "true" : "false");
-        } catch (err) {
-            console.error("Failed to store Google connection state", err);
-        }
-    }, [googleConnected]);
-
-    // React to the googleStatus query param from the server
-    useEffect(() => {
-        if (!googleStatus) return;
-
-        if (googleStatus === "connected") {
-            setGoogleConnected(true);
-            if (typeof window !== "undefined") {
-                window.localStorage.setItem(GOOGLE_CONNECTION_KEY_PREFIX, "true");
-            }
-        } else if (googleStatus === "disconnected" || googleStatus === "error") {
-            setGoogleConnected(false);
-            if (typeof window !== "undefined") {
-                window.localStorage.setItem(GOOGLE_CONNECTION_KEY_PREFIX, "false");
-            }
-        }
-    }, [googleStatus]);
 
     return (
         <div className="space-y-6">
@@ -160,12 +108,13 @@ export function SettingsPageClient({
             {activeTab === "billing" && <BillingSection />}
 
             <GoogleConnectionCard
-                workspaceUserId={workspaceUserId}
-                googleConnected={googleConnected}
-                setGoogleConnected={setGoogleConnected}
+                workspaceUserId={workspaceUserId ?? ""}
+                initialGoogleConnected={initialGoogleConnected}
                 hasGoogleConnection={hasGoogleConnection}
                 googleConnectedLabel={googleConnectedLabel}
                 googleLastUpdatedLabel={googleLastUpdatedLabel}
+                googleStatus={googleStatus}
+                googleError={googleError}
             />
 
             {/* Sign out section - always visible */}
@@ -591,147 +540,207 @@ function BillingSection() {
 }
 
 type GoogleCardProps = {
-    workspaceUserId: string | null;
-
-    // live state coming from the parent SettingsPageClient
-    googleConnected: boolean;
-    setGoogleConnected: (value: boolean) => void;
-
-    // optional DB info (for labels / timestamps)
+    workspaceUserId: string;
+    initialGoogleConnected: boolean;
     hasGoogleConnection: boolean;
     googleConnectedLabel: string | null;
     googleLastUpdatedLabel: string | null;
+    googleStatus: string | null;
+    googleError: string | null;
 };
 
 function GoogleConnectionCard({
     workspaceUserId,
-    googleConnected,
-    setGoogleConnected,
+    initialGoogleConnected,
     hasGoogleConnection,
     googleConnectedLabel,
     googleLastUpdatedLabel,
+    googleStatus,
+    googleError,
 }: GoogleCardProps) {
-    const searchParams = useSearchParams();
-
+    const [connected, setConnected] = useState<boolean>(
+        initialGoogleConnected || hasGoogleConnection || false,
+    );
     const [isConnecting, setIsConnecting] = useState(false);
+    const [connectError, setConnectError] = useState<string | null>(null);
     const [isDisconnecting, setIsDisconnecting] = useState(false);
 
+    const STORAGE_KEY = "aiSheet_google_connected";
+
+    const statusLabel = connected ? "Connected" : "Not connected";
+
+    const showMeta =
+        (connected || hasGoogleConnection) &&
+        (googleConnectedLabel || googleLastUpdatedLabel);
+
+    // Hydrate from localStorage on mount so state persists across tab changes/refresh
     useEffect(() => {
-        const error = searchParams.get("googleError");
-        if (!error) return;
+        if (typeof window === "undefined") return;
 
-        if (error === "start_failed") {
-            console.error("Google connection failed: start_failed");
-        } else if (error === "callback_failed") {
-            console.error("Google connection failed: callback_failed");
+        const stored = window.localStorage.getItem(STORAGE_KEY);
+        if (stored === "true") {
+            setConnected(true);
+        } else if (stored === "false") {
+            setConnected(false);
+        } else if (hasGoogleConnection && !connected) {
+            setConnected(true);
         }
-    }, [searchParams]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [hasGoogleConnection]);
 
-    const handleConnectClick = useCallback(() => {
-        setIsConnecting(true);
-        // Start Google OAuth – callback handles the rest
-        window.location.href = "/api/google/oauth/start";
-    }, []);
+    // React to query param (?googleStatus=connected|disconnected|error)
+    useEffect(() => {
+        if (!googleStatus) return;
+
+        if (googleStatus === "connected") {
+            setConnected(true);
+            if (typeof window !== "undefined") {
+                window.localStorage.setItem(STORAGE_KEY, "true");
+            }
+            console.log("Google Sheets connected");
+        } else if (googleStatus === "disconnected") {
+            setConnected(false);
+            if (typeof window !== "undefined") {
+                window.localStorage.setItem(STORAGE_KEY, "false");
+            }
+            console.log("Google Sheets disconnected");
+        } else if (googleStatus === "error") {
+            console.error("Google connection error:", googleError);
+        }
+    }, [googleStatus, googleError]);
+
+    const handleConnectClick = useCallback(
+        () => {
+            setIsConnecting(true);
+            setConnectError(null);
+
+            try {
+                const searchParams = new URLSearchParams();
+
+                // Include workspaceUserId if we have it (but don't block if we don't)
+                if (workspaceUserId) {
+                    searchParams.set("workspaceUserId", workspaceUserId);
+                }
+
+                // Always send user back to settings after OAuth
+                searchParams.set("returnTo", "/dashboard/settings");
+
+                // Use GET redirect – matches the existing /api/google/oauth/start route
+                window.location.href = `/api/google/oauth/start?${searchParams.toString()}`;
+            } catch (error) {
+                console.error("Failed to start Google OAuth", error);
+                setConnectError(
+                    error instanceof Error
+                        ? error.message
+                        : "Failed to start Google OAuth"
+                );
+                setIsConnecting(false);
+            }
+        },
+        [workspaceUserId]
+    );
 
     const handleDisconnectClick = useCallback(async () => {
-        setIsDisconnecting(true);
         try {
-            // Update UI state immediately
-            setGoogleConnected(false);
+            if (!workspaceUserId) {
+                console.error("Missing workspace user id for disconnect");
+                return;
+            }
+
+            setIsDisconnecting(true);
+
+            const res = await fetch("/api/google/oauth/disconnect", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ workspaceUserId }),
+            });
+
+            if (!res.ok) {
+                throw new Error("Failed to disconnect Google account");
+            }
+
+            setConnected(false);
             if (typeof window !== "undefined") {
-                window.localStorage.setItem(GOOGLE_CONNECTION_KEY_PREFIX, "false");
+                window.localStorage.setItem(STORAGE_KEY, "false");
             }
 
-            if (workspaceUserId) {
-                const res = await fetch("/api/google/oauth/disconnect", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ workspaceUserId }),
-                });
-
-                if (!res.ok) {
-                    console.error("Failed to disconnect Google account");
-                }
-            }
+            console.log("Disconnected from Google");
         } catch (err) {
-            console.error("Error disconnecting Google account", err);
+            console.error("Failed to disconnect Google:", err);
         } finally {
             setIsDisconnecting(false);
         }
-    }, [setGoogleConnected, workspaceUserId]);
-
-    const statusLabel = googleConnected
-        ? "Google Sheets is connected. We’ll create and update spreadsheets in your Drive."
-        : "Connect your Google account so AI Sheet Builder can create and manage spreadsheets directly in your Drive.";
-
-    const badgeLabel = googleConnected ? "Connected" : "Not connected";
-    const showMeta =
-        (googleConnected || hasGoogleConnection) &&
-        (googleConnectedLabel || googleLastUpdatedLabel);
+    }, [workspaceUserId]);
 
     return (
-        <section className={cardClasses.primary} aria-labelledby="google-connection-heading">
+        <section
+            className={cardClasses.primary}
+            aria-labelledby="google-connection-heading"
+        >
             <div className="flex items-center justify-between gap-4">
                 <div>
                     <h2
                         id="google-connection-heading"
-                        className={textStyles.cardTitle}
+                        className={textStyles.sectionTitle}
                     >
                         Connect Google Sheets
                     </h2>
-                    <p className={`${textStyles.cardLabel} mt-1 text-slate-500`}>
-                        {statusLabel}
+                    <p className={`${textStyles.body} mt-1 text-slate-500`}>
+                        {connected
+                            ? "Google Sheets is connected. We’ll create and update spreadsheets in your Drive."
+                            : "Connect your Google account so AI Sheet Builder can create and manage spreadsheets in your Drive."}
                     </p>
                     {showMeta && (
                         <p className="mt-1 text-xs text-slate-400">
-                            {googleConnectedLabel ? `Connected as ${googleConnectedLabel}` : "Connected"}
-                            {googleLastUpdatedLabel ? ` · Last updated ${googleLastUpdatedLabel}` : ""}
+                            {googleConnectedLabel
+                                ? `Connected as ${googleConnectedLabel}`
+                                : null}
+                            {googleConnectedLabel && googleLastUpdatedLabel ? " · " : null}
+                            {googleLastUpdatedLabel
+                                ? `Last updated ${googleLastUpdatedLabel}`
+                                : null}
                         </p>
                     )}
                 </div>
 
-                <span
-                    className={`px-3 py-1 text-xs rounded-full border ${
-                        googleConnected
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                            : "border-slate-200 bg-slate-50 text-slate-500"
-                    }`}
-                >
-                    {badgeLabel}
-                </span>
-            </div>
+                <div className="flex items-center gap-3">
+                    <button
+                        type="button"
+                        onClick={connected ? handleDisconnectClick : handleConnectClick}
+                        disabled={isConnecting || isDisconnecting}
+                        className={`inline-flex items-center rounded-full px-5 py-2.5 text-sm font-medium shadow-sm ${
+                            connected
+                                ? "bg-white text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50"
+                                : "bg-emerald-500 text-white hover:bg-emerald-600"
+                        }`}
+                    >
+                        <span className="relative inline-flex h-6 w-6 items-center justify-center rounded-full bg-white">
+                            <Image
+                                src="/logos/google.png"
+                                alt="Google"
+                                width={24}
+                                height={24}
+                                className="h-6 w-6 object-contain"
+                            />
+                        </span>
 
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
-                <button
-                    type="button"
-                    onClick={googleConnected ? handleDisconnectClick : handleConnectClick}
-                    disabled={isConnecting || isDisconnecting}
-                    className="inline-flex items-center gap-3 rounded-full bg-emerald-500 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-600 disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                    <span className="relative inline-flex h-6 w-6 items-center justify-center rounded-full bg-white">
-                        <Image
-                            src="/logos/google.png"
-                            alt="Google"
-                            width={24}
-                            height={24}
-                            className="h-6 w-6 object-contain"
-                        />
+                        <span>
+                            {connected
+                                ? isDisconnecting
+                                    ? "Disconnecting..."
+                                    : "Disconnect from Google"
+                                : isConnecting
+                                    ? "Connecting..."
+                                    : "Connect Google Account"}
+                        </span>
+                    </button>
+
+                    <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                        {statusLabel}
                     </span>
-
-                    <span>
-                        {googleConnected
-                            ? isDisconnecting
-                                ? "Disconnecting..."
-                                : "Disconnect from Google"
-                            : isConnecting
-                                ? "Connecting..."
-                                : "Connect Google Account"}
-                    </span>
-                </button>
-
-                <p className="max-w-sm text-xs text-slate-400">
-                    We only create and update spreadsheets related to your AI Sheet Builder workspace. You can disconnect at any time from this page or from your Google Account settings.
-                </p>
+                </div>
             </div>
         </section>
     );
