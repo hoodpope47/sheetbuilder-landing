@@ -10,13 +10,27 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
 
     const {
         data: { user },
+        error: userError,
     } = await supabase.auth.getUser();
 
-    const { data: profile } = await supabase
-        .from("user_profiles")
-        .select("*")
-        .eq("user_id", user?.id)
-        .maybeSingle();
+    if (userError) {
+        console.error("[Settings page] auth.getUser error", userError);
+    }
+
+    let profileRow: any = null;
+    if (user) {
+        const { data, error } = await supabase
+            .from("workspace_profiles")
+            .select("full_name, company_name, role")
+            .eq("workspace_user_id", user.id)
+            .maybeSingle();
+
+        if (error) {
+            console.error("[Settings page] workspace_profiles error", error);
+        } else {
+            profileRow = data;
+        }
+    }
 
     const workspaceUserId = user?.id ?? "";
 
@@ -29,11 +43,12 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
     const initialGoogleConnected = googleStatus === "connected";
 
     const initialProfile = {
-        full_name: profile?.full_name ?? "",
-        company: profile?.company ?? "",
-        job_title: profile?.job_title ?? "",
-        phone: profile?.phone ?? "",
-        display_name: profile?.display_name ?? "",
+        full_name: profileRow?.full_name ?? "",
+        company_name: profileRow?.company_name ?? "",
+        role: profileRow?.role ?? "",
+        phone: "",
+        display_name: "",
+        profile_picture_url: "",
     };
 
     let googleConnected = false;

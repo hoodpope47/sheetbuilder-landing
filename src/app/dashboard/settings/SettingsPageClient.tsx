@@ -3,7 +3,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import {
-    updateUserProfile,
     updateUserPreferences,
     updateUserEmail,
     updateUserPassword,
@@ -37,8 +36,15 @@ const TABS: { id: TabId; label: string; description: string }[] = [
 ];
 
 type SettingsPageClientProps = {
-    initialProfile: any;
-    workspaceUserId: string | null;
+    initialProfile?: {
+        full_name: string | null;
+        company_name: string | null;
+        role: string | null;
+        display_name?: string | null;
+        phone?: string | null;
+        profile_picture_url?: string | null;
+    };
+    workspaceUserId: string;
 
     // Google connection props coming from the server
     initialGoogleConnected: boolean;
@@ -64,7 +70,7 @@ type SummaryCard = {
 };
 
 export function SettingsPageClient({
-    initialProfile: _initialProfile,
+    initialProfile,
     workspaceUserId,
     initialGoogleConnected,
     hasGoogleConnection = false,
@@ -74,6 +80,235 @@ export function SettingsPageClient({
     googleError,
 }: SettingsPageClientProps) {
     const [activeTab, setActiveTab] = useState<TabId>("account");
+
+    // ----- Account/profile form state -----
+    const [fullName, setFullName] = useState(initialProfile?.full_name ?? "");
+    const [company, setCompany] = useState(initialProfile?.company_name ?? "");
+    const [jobTitle, setJobTitle] = useState(initialProfile?.role ?? "");
+    const [phone, setPhone] = useState(initialProfile?.phone ?? "");
+
+    const [displayName, setDisplayName] = useState<string>(
+        initialProfile?.display_name ??
+            (typeof window !== "undefined"
+                ? window.localStorage.getItem("aisb_display_name") || ""
+                : ""),
+    );
+
+    const [profilePictureUrl, setProfilePictureUrl] = useState<string>(
+        initialProfile?.profile_picture_url ??
+            (typeof window !== "undefined"
+                ? window.localStorage.getItem("aisb_profile_picture_url") || ""
+                : ""),
+    );
+    // -------------------------------------------------------------------
+    // Effective workspace ID (per browser / user):
+    // - Prefer workspaceUserId from props if present.
+    // - Otherwise, generate a stable ID and store it in localStorage.
+    // -------------------------------------------------------------------
+    const [effectiveWorkspaceId, setEffectiveWorkspaceId] = useState<string | null>(() => {
+        if (typeof window === "undefined") {
+            return workspaceUserId && workspaceUserId.trim().length > 0
+                ? workspaceUserId.trim()
+                : null;
+        }
+
+        const stored = window.localStorage.getItem("ai_sheet_workspace_id");
+        if (stored && stored.trim().length > 0) {
+            return stored.trim();
+        }
+
+        if (workspaceUserId && workspaceUserId.trim().length > 0) {
+            const trimmed = workspaceUserId.trim();
+            window.localStorage.setItem("ai_sheet_workspace_id", trimmed);
+            return trimmed;
+        }
+
+        const generated = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+            ? crypto.randomUUID()
+            : `ws_${Math.random().toString(36).slice(2)}`;
+
+        window.localStorage.setItem("ai_sheet_workspace_id", generated);
+        return generated;
+    });
+
+    // -------------------------------------------------------------------
+    // When we know the effectiveWorkspaceId, load any saved profile from
+    // localStorage so the form is prefilled even after navigation/reload.
+    // Profiles are stored per-workspace in "ai_sheet_profiles".
+    // -------------------------------------------------------------------
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        if (!effectiveWorkspaceId || !effectiveWorkspaceId.trim()) return;
+
+        try {
+            const raw = window.localStorage.getItem("ai_sheet_profiles");
+            if (!raw) return;
+
+            const parsed = JSON.parse(raw) as {
+                [workspaceId: string]: {
+                    full_name?: string | null;
+                    company_name?: string | null;
+                    role?: string | null;
+                };
+            };
+
+            const stored = parsed[effectiveWorkspaceId];
+            if (!stored) return;
+
+            // Only override if fields are currently empty,
+            // so we don't clobber unsaved user typing.
+            if (!fullName && stored.full_name != null) {
+                setFullName(stored.full_name);
+            }
+            if (!company && stored.company_name != null) {
+                setCompany(stored.company_name);
+            }
+            if (!jobTitle && stored.role != null) {
+                setJobTitle(stored.role);
+            }
+        } catch (err) {
+            console.warn("[Settings] Failed to load profile from localStorage:", err);
+        }
+    }, [effectiveWorkspaceId]);
+
+    useEffect(() => {
+        // If server passed a usable workspaceUserId, adopt it and persist it.
+        if (workspaceUserId && workspaceUserId.trim().length > 0) {
+            const trimmed = workspaceUserId.trim();
+            setEffectiveWorkspaceId(trimmed);
+
+            if (typeof window !== "undefined") {
+                window.localStorage.setItem("ai_sheet_workspace_id", trimmed);
+            }
+            return;
+        }
+
+        // Otherwise, fall back to localStorage or generate a new one.
+        if (typeof window === "undefined") return;
+
+        const existing = window.localStorage.getItem("ai_sheet_workspace_id");
+        if (existing && existing.trim().length > 0) {
+            setEffectiveWorkspaceId(existing.trim());
+            return;
+        }
+
+        const generated =
+            typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+                ? crypto.randomUUID()
+                : `ws_${Math.random().toString(36).slice(2)}`;
+
+        setEffectiveWorkspaceId(generated);
+        window.localStorage.setItem("ai_sheet_workspace_id", generated);
+    }, [workspaceUserId]);
+
+    const [accountSaving, setAccountSaving] = useState(false);
+    const [accountSaved, setAccountSaved] = useState(false);
+    const [accountError, setAccountError] = useState<string | null>(null);
+
+    const handleAccountSubmit = async (
+        e: React.FormEvent<HTMLFormElement>,
+    ) => {
+        e.preventDefault();
+
+        setAccountError(null);
+        setAccountSaved(false);
+        setAccountSaving(true);
+
+        try {
+            const workspaceIdToUse =
+                effectiveWorkspaceId && effectiveWorkspaceId.trim().length > 0
+                    ? effectiveWorkspaceId.trim()
+                    : null;
+
+            const payload = {
+                full_name: fullName?.trim() || null,
+                company_name: company?.trim() || null,
+                role: jobTitle?.trim() || null,
+                workspaceUserId: workspaceIdToUse,
+            };
+
+            if (!payload.workspaceUserId) {
+                console.error(
+                    "[Settings] Missing workspaceUserId when saving profile (even after fallback).",
+                );
+                throw new Error(
+                    "Something went wrong identifying your account. Please refresh and try again.",
+                );
+            }
+
+            const res = await fetch("/api/settings/profile", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(payload),
+            });
+
+            const data = await res.json().catch(() => null);
+
+            if (!res.ok) {
+                console.error("[Settings] Save profile error response:", data);
+                throw new Error(
+                    data?.error || "Could not save profile. Please try again.",
+                );
+            }
+
+            console.log("[Settings] Profile saved:", data);
+
+            // -----------------------------------------------------------------
+            // ALSO persist this profile per-workspace in localStorage so that
+            // the dashboard "remembers" the user when they come back.
+            // Key: "ai_sheet_profiles" → { [workspaceId]: { full_name, company_name, role } }
+            // -----------------------------------------------------------------
+            if (typeof window !== "undefined" && payload.workspaceUserId) {
+                try {
+                    const raw = window.localStorage.getItem("ai_sheet_profiles");
+                    const map =
+                        raw && raw.length
+                            ? ((JSON.parse(raw) as {
+                                  [workspaceId: string]: {
+                                      full_name?: string | null;
+                                      company_name?: string | null;
+                                      role?: string | null;
+                                  };
+                              }) || {})
+                            : {};
+
+                    map[payload.workspaceUserId] = {
+                        full_name: payload.full_name,
+                        company_name: payload.company_name,
+                        role: payload.role,
+                    };
+
+                    window.localStorage.setItem(
+                        "ai_sheet_profiles",
+                        JSON.stringify(map),
+                    );
+
+                    console.log(
+                        "[Settings] Profile cached in localStorage for workspace:",
+                        payload.workspaceUserId,
+                    );
+                } catch (storageErr) {
+                    console.warn(
+                        "[Settings] Failed to cache profile in localStorage:",
+                        storageErr,
+                    );
+                }
+            }
+
+            setAccountSaved(true);
+            setAccountError(null);
+        } catch (err: any) {
+            console.error("[Settings] Unable to save profile:", err);
+            setAccountSaved(false);
+            setAccountError(
+                err?.message || "Could not save profile. Please try again.",
+            );
+        } finally {
+            setAccountSaving(false);
+        }
+    };
 
     return (
         <div className="space-y-6">
@@ -102,13 +337,32 @@ export function SettingsPageClient({
                 ))}
             </div>
 
-            {activeTab === "account" && <AccountSection />}
+            {activeTab === "account" && (
+                <AccountSection
+                    fullName={fullName}
+                    company={company}
+                    jobTitle={jobTitle}
+                    phone={phone}
+                    displayName={displayName}
+                    profilePictureUrl={profilePictureUrl}
+                    onFullNameChange={setFullName}
+                    onCompanyChange={setCompany}
+                    onJobTitleChange={setJobTitle}
+                    onPhoneChange={setPhone}
+                    onDisplayNameChange={setDisplayName}
+                    onProfilePictureUrlChange={setProfilePictureUrl}
+                    accountSaving={accountSaving}
+                    accountSaved={accountSaved}
+                    accountError={accountError}
+                    onSubmit={handleAccountSubmit}
+                />
+            )}
             {activeTab === "security" && <SecuritySection />}
             {activeTab === "preferences" && <PreferencesSection />}
             {activeTab === "billing" && <BillingSection />}
 
             <GoogleConnectionCard
-                workspaceUserId={workspaceUserId ?? ""}
+                workspaceUserId={effectiveWorkspaceId ?? workspaceUserId ?? ""}
                 initialGoogleConnected={initialGoogleConnected}
                 hasGoogleConnection={hasGoogleConnection}
                 googleConnectedLabel={googleConnectedLabel}
@@ -129,52 +383,50 @@ export function SettingsPageClient({
     );
 }
 
-function AccountSection() {
-    const [fullName, setFullName] = useState("");
-    const [company, setCompany] = useState("");
-    const [jobTitle, setJobTitle] = useState("");
-    const [phone, setPhone] = useState("");
-    const [displayName, setDisplayName] = useState("");
-    const [avatarUrl, setAvatarUrl] = useState("");
-    const [status, setStatus] = useState<string | null>(null);
-    const [error, setError] = useState<string | null>(null);
-    const [saving, setSaving] = useState(false);
+type AccountSectionProps = {
+    fullName: string;
+    company: string;
+    jobTitle: string;
+    phone: string;
+    displayName: string;
+    profilePictureUrl: string;
+    onFullNameChange: (value: string) => void;
+    onCompanyChange: (value: string) => void;
+    onJobTitleChange: (value: string) => void;
+    onPhoneChange: (value: string) => void;
+    onDisplayNameChange: (value: string) => void;
+    onProfilePictureUrlChange: (value: string) => void;
+    accountSaving: boolean;
+    accountSaved: boolean;
+    accountError: string | null;
+    onSubmit: (e: React.FormEvent) => void;
+};
 
-    type ProfileUpdateInput = {
-        full_name?: string;
-        company?: string;
-        job_title?: string;
-        phone?: string;
-        display_name?: string;
-        avatar_url?: string;
-    };
-
-    async function handleSave() {
-        try {
-            setSaving(true);
-            setStatus(null);
-            setError(null);
-            const payload: ProfileUpdateInput = {
-                full_name: fullName || undefined,
-                company: company || undefined,
-                job_title: jobTitle || undefined,
-                phone: phone || undefined,
-                display_name: displayName || undefined,
-                avatar_url: avatarUrl || undefined,
-            };
-            await updateUserProfile(payload as any);
-            setStatus("Profile updated successfully.");
-        } catch (err: any) {
-            console.error(err);
-            setError(err.message || "Failed to update profile.");
-        } finally {
-            setSaving(false);
-        }
-    }
+function AccountSection({
+    fullName,
+    company,
+    jobTitle,
+    phone,
+    displayName,
+    profilePictureUrl,
+    onFullNameChange,
+    onCompanyChange,
+    onJobTitleChange,
+    onPhoneChange,
+    onDisplayNameChange,
+    onProfilePictureUrlChange,
+    accountSaving,
+    accountSaved,
+    accountError,
+    onSubmit,
+}: AccountSectionProps) {
 
     return (
         <section className="grid gap-4 md:grid-cols-[minmax(0,2fr),minmax(0,1.2fr)]">
-            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
+            <form
+                onSubmit={onSubmit}
+                className="rounded-2xl border border-slate-200 bg-white px-4 py-4"
+            >
                 <h2 className="text-sm font-semibold text-slate-900">Profile details</h2>
                 <p className="mt-1 text-xs text-slate-500">
                     These details help us personalize your workspace and invoices.
@@ -187,7 +439,7 @@ function AccountSection() {
                             type="text"
                             className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs text-slate-800 focus:border-emerald-400 focus:bg-white focus:outline-none"
                             value={fullName}
-                            onChange={(e) => setFullName(e.target.value)}
+                            onChange={(e) => onFullNameChange(e.target.value)}
                             placeholder="e.g. Alex Hernandez"
                         />
                         <p className="mt-1 text-[11px] text-slate-500">
@@ -200,7 +452,7 @@ function AccountSection() {
                             type="text"
                             className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs text-slate-800 focus:border-emerald-400 focus:bg-white focus:outline-none"
                             value={company}
-                            onChange={(e) => setCompany(e.target.value)}
+                            onChange={(e) => onCompanyChange(e.target.value)}
                             placeholder="e.g. NoCost Replacement"
                         />
                     </div>
@@ -210,7 +462,7 @@ function AccountSection() {
                             type="text"
                             className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs text-slate-800 focus:border-emerald-400 focus:bg-white focus:outline-none"
                             value={jobTitle}
-                            onChange={(e) => setJobTitle(e.target.value)}
+                            onChange={(e) => onJobTitleChange(e.target.value)}
                             placeholder="e.g. Founder, Ops, RevOps"
                         />
                     </div>
@@ -220,7 +472,7 @@ function AccountSection() {
                             type="tel"
                             className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs text-slate-800 focus:border-emerald-400 focus:bg-white focus:outline-none"
                             value={phone}
-                            onChange={(e) => setPhone(e.target.value)}
+                            onChange={(e) => onPhoneChange(e.target.value)}
                             placeholder="+1 (555) 555-5555"
                         />
                     </div>
@@ -230,7 +482,7 @@ function AccountSection() {
                             type="text"
                             className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs text-slate-800 focus:border-emerald-400 focus:bg-white focus:outline-none"
                             value={displayName}
-                            onChange={(e) => setDisplayName(e.target.value)}
+                            onChange={(e) => onDisplayNameChange(e.target.value)}
                             placeholder="Name shown in your dashboard"
                         />
                         <p className="text-[11px] text-slate-500">
@@ -242,8 +494,8 @@ function AccountSection() {
                         <input
                             type="url"
                             className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs text-slate-800 focus:border-emerald-400 focus:bg-white focus:outline-none"
-                            value={avatarUrl}
-                            onChange={(e) => setAvatarUrl(e.target.value)}
+                            value={profilePictureUrl}
+                            onChange={(e) => onProfilePictureUrlChange(e.target.value)}
                             placeholder="https://…"
                         />
                         <p className="text-[11px] text-slate-500">
@@ -254,20 +506,20 @@ function AccountSection() {
 
                 <div className="mt-4 flex items-center gap-3">
                     <button
-                        disabled={saving}
-                        onClick={handleSave}
+                        type="submit"
+                        disabled={accountSaving}
                         className="inline-flex items-center justify-center rounded-full bg-emerald-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-60"
                     >
-                        {saving ? "Saving…" : "Save changes"}
+                        {accountSaving ? "Saving..." : "Save changes"}
                     </button>
-                    {status && (
-                        <span className="text-[11px] text-emerald-700">{status}</span>
+                    {accountError && (
+                        <p className="mt-2 text-sm text-red-500">{accountError}</p>
                     )}
-                    {error && (
-                        <span className="text-[11px] text-red-600">{error}</span>
+                    {accountSaved && (
+                        <p className="mt-2 text-sm text-emerald-600">Saved successfully.</p>
                     )}
                 </div>
-            </div>
+            </form>
 
             <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
                 <h3 className="text-sm font-semibold text-slate-900">Profile tips</h3>
@@ -562,7 +814,7 @@ function GoogleConnectionCard({
         initialGoogleConnected || hasGoogleConnection || false,
     );
     const [isConnecting, setIsConnecting] = useState(false);
-    const [connectError, setConnectError] = useState<string | null>(null);
+    const [_connectError, setConnectError] = useState<string | null>(null);
     const [isDisconnecting, setIsDisconnecting] = useState(false);
 
     const STORAGE_KEY = "aiSheet_google_connected";
