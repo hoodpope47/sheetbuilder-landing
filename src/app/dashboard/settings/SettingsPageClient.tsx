@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState, type ComponentProps } from "react";
 import Image from "next/image";
 import {
     updateUserPreferences,
@@ -44,7 +44,7 @@ type SettingsPageClientProps = {
         phone?: string | null;
         profile_picture_url?: string | null;
     };
-    workspaceUserId: string;
+    workspaceUserId?: string;
 
     // Google connection props coming from the server
     initialGoogleConnected: boolean;
@@ -71,7 +71,7 @@ type SummaryCard = {
 
 export function SettingsPageClient({
     initialProfile,
-    workspaceUserId,
+    workspaceUserId = "",
     initialGoogleConnected,
     hasGoogleConnection = false,
     googleConnectedLabel,
@@ -100,36 +100,36 @@ export function SettingsPageClient({
                 ? window.localStorage.getItem("aisb_profile_picture_url") || ""
                 : ""),
     );
-    // -------------------------------------------------------------------
-    // Effective workspace ID (per browser / user):
-    // - Prefer workspaceUserId from props if present.
-    // - Otherwise, generate a stable ID and store it in localStorage.
-    // -------------------------------------------------------------------
-    const [effectiveWorkspaceId, setEffectiveWorkspaceId] = useState<string | null>(() => {
+
+    const [effectiveWorkspaceId, setEffectiveWorkspaceId] = useState<string | null>(null);
+
+    useEffect(() => {
         if (typeof window === "undefined") {
-            return workspaceUserId && workspaceUserId.trim().length > 0
-                ? workspaceUserId.trim()
-                : null;
+            return;
         }
 
-        const stored = window.localStorage.getItem("ai_sheet_workspace_id");
-        if (stored && stored.trim().length > 0) {
-            return stored.trim();
-        }
+        let initialId: string | null = null;
 
         if (workspaceUserId && workspaceUserId.trim().length > 0) {
-            const trimmed = workspaceUserId.trim();
-            window.localStorage.setItem("ai_sheet_workspace_id", trimmed);
-            return trimmed;
+            initialId = workspaceUserId.trim();
+        } else {
+            const stored = window.localStorage.getItem("ai_sheet_workspace_user_id");
+            if (stored && stored.trim().length > 0) {
+                initialId = stored.trim();
+            }
         }
 
-        const generated = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-            ? crypto.randomUUID()
-            : `ws_${Math.random().toString(36).slice(2)}`;
+        if (!initialId) {
+            if (window.crypto?.randomUUID) {
+                initialId = window.crypto.randomUUID();
+            } else {
+                initialId = `ws-${Date.now()}`;
+            }
+        }
 
-        window.localStorage.setItem("ai_sheet_workspace_id", generated);
-        return generated;
-    });
+        window.localStorage.setItem("ai_sheet_workspace_user_id", initialId);
+        setEffectiveWorkspaceId(initialId);
+    }, [workspaceUserId]);
 
     // -------------------------------------------------------------------
     // When we know the effectiveWorkspaceId, load any saved profile from
@@ -171,35 +171,60 @@ export function SettingsPageClient({
         }
     }, [effectiveWorkspaceId]);
 
+    // Load profile from API when we have an effectiveWorkspaceId
     useEffect(() => {
-        // If server passed a usable workspaceUserId, adopt it and persist it.
-        if (workspaceUserId && workspaceUserId.trim().length > 0) {
-            const trimmed = workspaceUserId.trim();
-            setEffectiveWorkspaceId(trimmed);
+        if (!effectiveWorkspaceId || typeof window === "undefined") return;
 
-            if (typeof window !== "undefined") {
-                window.localStorage.setItem("ai_sheet_workspace_id", trimmed);
+        const controller = new AbortController();
+
+        async function loadProfile() {
+            try {
+                const res = await fetch(
+                    `/api/settings/profile?workspaceUserId=${encodeURIComponent(
+                        effectiveWorkspaceId,
+                    )}`,
+                    { method: "GET", signal: controller.signal },
+                );
+
+                if (!res.ok) {
+                    console.warn("[Settings] Failed to load profile from API:", res.status);
+                    return;
+                }
+
+                const json = (await res.json()) as { profile: any | null };
+
+                if (!json.profile) {
+                    return;
+                }
+
+                const profile = json.profile;
+
+                setFullName(profile.full_name ?? "");
+                setCompany(profile.company_name ?? "");
+                setJobTitle(profile.role ?? "");
+                setDisplayName(profile.display_name ?? "");
+                setPhone(profile.phone ?? "");
+                setProfilePictureUrl(profile.profile_picture_url ?? "");
+
+                window.localStorage.setItem("ai_sheet_profile_full_name", profile.full_name ?? "");
+                window.localStorage.setItem("ai_sheet_profile_company_name", profile.company_name ?? "");
+                window.localStorage.setItem("ai_sheet_profile_role", profile.role ?? "");
+                window.localStorage.setItem("ai_sheet_profile_display_name", profile.display_name ?? "");
+                window.localStorage.setItem("ai_sheet_profile_phone", profile.phone ?? "");
+                window.localStorage.setItem(
+                    "ai_sheet_profile_picture_url",
+                    profile.profile_picture_url ?? "",
+                );
+            } catch (err) {
+                if ((err as any).name === "AbortError") return;
+                console.error("[Settings] Error loading profile from API:", err);
             }
-            return;
         }
 
-        // Otherwise, fall back to localStorage or generate a new one.
-        if (typeof window === "undefined") return;
+        loadProfile();
 
-        const existing = window.localStorage.getItem("ai_sheet_workspace_id");
-        if (existing && existing.trim().length > 0) {
-            setEffectiveWorkspaceId(existing.trim());
-            return;
-        }
-
-        const generated =
-            typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-                ? crypto.randomUUID()
-                : `ws_${Math.random().toString(36).slice(2)}`;
-
-        setEffectiveWorkspaceId(generated);
-        window.localStorage.setItem("ai_sheet_workspace_id", generated);
-    }, [workspaceUserId]);
+        return () => controller.abort();
+    }, [effectiveWorkspaceId]);
 
     const [accountSaving, setAccountSaving] = useState(false);
     const [accountSaved, setAccountSaved] = useState(false);
@@ -215,26 +240,30 @@ export function SettingsPageClient({
         setAccountSaving(true);
 
         try {
-            const workspaceIdToUse =
-                effectiveWorkspaceId && effectiveWorkspaceId.trim().length > 0
-                    ? effectiveWorkspaceId.trim()
-                    : null;
+            if (!effectiveWorkspaceId) {
+                console.error("[Settings] No effectiveWorkspaceId when saving profile.");
+                setAccountError(
+                    "Something went wrong identifying your account. Please try again.",
+                );
+                return false;
+            }
+
+            const trimmedFullName = fullName?.trim() || null;
+            const trimmedCompanyName = company?.trim() || null;
+            const trimmedRole = jobTitle?.trim() || null;
+            const trimmedPhone = phone?.trim() || null;
+            const trimmedDisplayName = displayName?.trim() || null;
+            const trimmedProfileUrl = profilePictureUrl?.trim() || null;
 
             const payload = {
-                full_name: fullName?.trim() || null,
-                company_name: company?.trim() || null,
-                role: jobTitle?.trim() || null,
-                workspaceUserId: workspaceIdToUse,
+                workspaceUserId: effectiveWorkspaceId,
+                full_name: trimmedFullName,
+                company_name: trimmedCompanyName,
+                role: trimmedRole,
+                phone: trimmedPhone,
+                display_name: trimmedDisplayName,
+                profile_picture_url: trimmedProfileUrl,
             };
-
-            if (!payload.workspaceUserId) {
-                console.error(
-                    "[Settings] Missing workspaceUserId when saving profile (even after fallback).",
-                );
-                throw new Error(
-                    "Something went wrong identifying your account. Please refresh and try again.",
-                );
-            }
 
             const res = await fetch("/api/settings/profile", {
                 method: "POST",
@@ -297,14 +326,37 @@ export function SettingsPageClient({
                 }
             }
 
+            // Update local state for locked view
+            setFullName(trimmedFullName || "");
+            setCompany(trimmedCompanyName || "");
+            setJobTitle(trimmedRole || "");
+            setPhone(trimmedPhone || "");
+            setDisplayName(trimmedDisplayName || "");
+            setProfilePictureUrl(trimmedProfileUrl || "");
+
+            // Mirror to localStorage for sticky profile data
+            if (typeof window !== "undefined") {
+                window.localStorage.setItem("ai_sheet_profile_full_name", trimmedFullName ?? "");
+                window.localStorage.setItem("ai_sheet_profile_company_name", trimmedCompanyName ?? "");
+                window.localStorage.setItem("ai_sheet_profile_role", trimmedRole ?? "");
+                window.localStorage.setItem("ai_sheet_profile_display_name", trimmedDisplayName ?? "");
+                window.localStorage.setItem("ai_sheet_profile_phone", trimmedPhone ?? "");
+                window.localStorage.setItem(
+                    "ai_sheet_profile_picture_url",
+                    trimmedProfileUrl ?? "",
+                );
+            }
+
             setAccountSaved(true);
             setAccountError(null);
+            return true;
         } catch (err: any) {
             console.error("[Settings] Unable to save profile:", err);
             setAccountSaved(false);
             setAccountError(
                 err?.message || "Could not save profile. Please try again.",
             );
+            return false;
         } finally {
             setAccountSaving(false);
         }
@@ -338,7 +390,7 @@ export function SettingsPageClient({
             </div>
 
             {activeTab === "account" && (
-                <AccountSection
+                <AccountPanel
                     fullName={fullName}
                     company={company}
                     jobTitle={jobTitle}
@@ -399,8 +451,121 @@ type AccountSectionProps = {
     accountSaving: boolean;
     accountSaved: boolean;
     accountError: string | null;
-    onSubmit: (e: React.FormEvent) => void;
+    onSubmit: (e: React.FormEvent) => Promise<boolean | void> | boolean | void;
+    onSaved?: () => void;
 };
+
+// Read-only wrapper around AccountSection.
+// By default it shows a locked, greyish summary card.
+// When "Edit profile" is clicked, it switches to the full editable AccountSection form.
+type AccountPanelProps = ComponentProps<typeof AccountSection>;
+
+function AccountPanel(props: AccountPanelProps) {
+    const [isEditing, setIsEditing] = useState(false);
+
+    // If the user has clicked "Edit profile", render the existing form.
+    if (isEditing) {
+        const { onSubmit, ...rest } = props;
+        return (
+            <AccountSection
+                {...rest}
+                onSubmit={async (e) => {
+                    const ok = await onSubmit(e);
+                    if (ok !== false) {
+                        setIsEditing(false);
+                    }
+                }}
+            />
+        );
+    }
+
+    const {
+        fullName,
+        company,
+        jobTitle,
+        phone,
+        displayName,
+        profilePictureUrl,
+    } = props;
+
+    return (
+        <section className={cardClasses.primary} aria-label="Profile details">
+            <div className="flex items-center justify-between gap-4">
+                <div>
+                    <h2 className={textStyles.sectionTitle}>Profile details</h2>
+                    <p className={`${textStyles.body} text-slate-500`}>
+                        These details help us personalize your workspace and invoices.
+                    </p>
+                </div>
+
+                <button
+                    type="button"
+                    onClick={() => setIsEditing(true)}
+                    className="rounded-full border border-slate-300 px-4 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+                >
+                    Edit profile
+                </button>
+            </div>
+
+            {/* Locked view content */}
+            <dl className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                        Full name
+                    </dt>
+                    <dd className="mt-1 text-sm text-slate-900">
+                        {fullName || "—"}
+                    </dd>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                        Company
+                    </dt>
+                    <dd className="mt-1 text-sm text-slate-900">
+                        {company || "—"}
+                    </dd>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                        Job title
+                    </dt>
+                    <dd className="mt-1 text-sm text-slate-900">
+                        {jobTitle || "—"}
+                    </dd>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                        Phone
+                    </dt>
+                    <dd className="mt-1 text-sm text-slate-900">
+                        {phone || "—"}
+                    </dd>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                        Display name
+                    </dt>
+                    <dd className="mt-1 text-sm text-slate-900">
+                        {displayName || "—"}
+                    </dd>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                        Profile picture URL
+                    </dt>
+                    <dd className="mt-1 text-sm text-slate-900 break-all">
+                        {profilePictureUrl || "—"}
+                    </dd>
+                </div>
+            </dl>
+        </section>
+    );
+}
 
 function AccountSection({
     fullName,
@@ -419,6 +584,7 @@ function AccountSection({
     accountSaved,
     accountError,
     onSubmit,
+    onSaved,
 }: AccountSectionProps) {
 
     return (
@@ -531,6 +697,8 @@ function AccountSection({
         </section>
     );
 }
+
+export default SettingsPageClient;
 
 function SecuritySection() {
     const [email, setEmail] = useState("");
