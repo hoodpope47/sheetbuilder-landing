@@ -15,8 +15,11 @@ import { getOrCreateLocalUserId } from "@/lib/userClient";
 import { getUsageMetrics, type UsageMetrics } from "@/lib/usage";
 import { UsageByCategoryCard } from "@/components/dashboard/overview/UsageByCategoryCard";
 import { cardClasses, textStyles, palette, layout } from "@/design-system/theme";
+import { useLocalProfileIdentity } from "@/lib/clientIdentity";
 
 export default function DashboardPage() {
+    const identity = useLocalProfileIdentity();
+    const greetingName = identity.displayName || identity.fullName || "there";
     const [metrics, setMetrics] = useState<UsageMetrics>({
         sheetsThisMonth: 0,
         totalSheets: 0,
@@ -56,7 +59,7 @@ export default function DashboardPage() {
             <div className="mb-6 flex items-center justify-between gap-4">
                 <div>
                     <h1 className={`text-2xl font-semibold ${palette.textPrimary}`}>
-                        Welcome back.
+                        {`Welcome back, ${greetingName}.`}
                     </h1>
                     <p className={`mt-1 text-sm ${palette.textMuted}`}>
                         Here&apos;s how your sheets and automations are doing this month.

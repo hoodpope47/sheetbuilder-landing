@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ReactNode, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { useLocalProfileIdentity } from "@/lib/clientIdentity";
 
 type NavItem = {
     label: string;
@@ -28,6 +29,7 @@ export function DashboardShellDesktop({ children }: { children: ReactNode }) {
     const [avatarOpen, setAvatarOpen] = useState(false);
     const [userEmail, setUserEmail] = useState<string | null>(null);
     const [userName, setUserName] = useState<string | null>(null);
+    const identity = useLocalProfileIdentity();
 
     // Fetch user info on mount
     useEffect(() => {
@@ -190,6 +192,17 @@ export function DashboardShellDesktop({ children }: { children: ReactNode }) {
                             <span>{theme === "dark" ? "Dark mode" : "Light mode"}</span>
                         </button>
 
+                        <div className="hidden sm:flex flex-col items-end leading-tight">
+                            <span className="text-[11px] text-slate-500">Signed in as</span>
+                            <span className="text-sm font-medium text-slate-900">
+                                {identity.displayName ||
+                                    identity.fullName ||
+                                    userName ||
+                                    userEmail ||
+                                    "Your account"}
+                            </span>
+                        </div>
+
                         {/* Avatar with dropdown */}
                         <div className="relative">
                             <button
@@ -197,16 +210,22 @@ export function DashboardShellDesktop({ children }: { children: ReactNode }) {
                                 onClick={() => setAvatarOpen((prev) => !prev)}
                                 className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-white text-xs font-semibold shadow-sm hover:scale-105 transition-transform"
                             >
-                                {(() => {
-                                    const name = userName || userEmail || "User";
-                                    const initials = name
-                                        .split(" ")
-                                        .map((p) => p[0])
-                                        .join("")
-                                        .slice(0, 2)
-                                        .toUpperCase();
-                                    return initials;
-                                })()}
+                                {identity.avatarUrl ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                        src={identity.avatarUrl}
+                                        alt={identity.displayName || identity.fullName || "User"}
+                                        className="h-full w-full rounded-full object-cover"
+                                    />
+                                ) : (
+                                    (identity.initials ||
+                                        (userName || userEmail || "U")
+                                            .split(" ")
+                                            .map((p) => p[0])
+                                            .join("")
+                                            .slice(0, 2)
+                                            .toUpperCase())
+                                )}
                             </button>
                             {avatarOpen && (
                                 <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-slate-200 bg-white py-2 text-xs shadow-lg z-20">

@@ -9,6 +9,7 @@ import {
 } from "@/lib/userClient";
 import { LogoutButton } from "@/components/dashboard/LogoutButton";
 import { cardClasses, textStyles } from "@/design-system/theme";
+import { setLocalProfileIdentity } from "@/lib/clientIdentity";
 
 type TabId = "account" | "security" | "preferences" | "billing";
 
@@ -349,6 +350,18 @@ export function SettingsPageClient({
 
             setAccountSaved(true);
             setAccountError(null);
+
+            // Keep the dashboard welcome text and navbar in sync with the latest profile.
+            try {
+                const primaryDisplayName = trimmedDisplayName || trimmedFullName || null;
+                setLocalProfileIdentity({
+                    displayName: primaryDisplayName,
+                    fullName: trimmedFullName || null,
+                    avatarUrl: trimmedProfileUrl || null,
+                });
+            } catch (e) {
+                console.warn("[Settings] Failed to persist local profile identity:", e);
+            }
             return true;
         } catch (err: any) {
             console.error("[Settings] Unable to save profile:", err);
